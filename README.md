@@ -7,7 +7,7 @@ This project provides a **Search-Based Product Matching** workflow with:
 ## 1) Backend setup (FastAPI)
 
 ```bash
-cd /home/runner/work/Paper_boat/Paper_boat
+cd <project-root>
 python -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -21,7 +21,7 @@ Backend runs at: `http://localhost:8000`
 Open a new terminal:
 
 ```bash
-cd /home/runner/work/Paper_boat/Paper_boat/frontend
+cd <project-root>/frontend
 npm install
 npm run dev
 ```

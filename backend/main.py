@@ -1,7 +1,9 @@
+import os
 from urllib.parse import quote_plus
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
 from .schemas import (
     BaseProduct,
@@ -12,10 +14,12 @@ from .schemas import (
 )
 
 app = FastAPI(title="Search-Based Product Matching API")
+load_dotenv()
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
