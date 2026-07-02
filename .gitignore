@@ -1,0 +1,10 @@
+.venv/
+backend/.venv/
+node_modules/
+frontend/.next/
+frontend/out/
+backend/scrape_outputs/
+logs/
+__pycache__/
+.env
+.pytest_cache/
