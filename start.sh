@@ -30,11 +30,11 @@ echo "Running migrations..."
 
 mkdir -p logs
 
-echo "Starting backend on http://0.0.0.0:8000 ..."
+echo "Starting backend on 0.0.0.0:8000 ..."
 setsid "$PY" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 > logs/backend.log 2>&1 &
 BACKEND_PID=$!
 
-echo "Starting frontend on http://0.0.0.0:3000 ..."
+echo "Starting frontend on 0.0.0.0:3000 ..."
 setsid bash -lc 'cd frontend && exec npm run dev -- --hostname 0.0.0.0 --port 3000' > logs/frontend.log 2>&1 &
 FRONTEND_PID=$!
 
@@ -73,12 +73,23 @@ wait_for() {
 }
 
 wait_for "Backend" "http://127.0.0.1:8000/" "$BACKEND_PID" "logs/backend.log"
-wait_for "Frontend" "http://127.0.0.1:3000/" "$FRONTEND_PID" "logs/frontend.log"
+wait_for "Frontend" "http://127.0.0.1:3000/products" "$FRONTEND_PID" "logs/frontend.log"
+
+codespaces_url() {
+  local port="$1"
+  if command -v gh >/dev/null 2>&1 && [[ -n "${CODESPACE_NAME:-}" ]]; then
+    gh codespace ports -c "$CODESPACE_NAME" --json sourcePort,browseUrl --jq ".[] | select(.sourcePort == $port) | .browseUrl" 2>/dev/null || true
+  fi
+}
+
+FRONTEND_URL="$(codespaces_url 3000)"
+BACKEND_URL="$(codespaces_url 8000)"
+FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:3000}"
+BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8000}"
 
 echo "Ready:"
-echo "  Local frontend:     http://127.0.0.1:3000"
-echo "  Local backend:      http://127.0.0.1:8000"
-echo "  GitHub forwarded:   open the forwarded port 3000 URL"
+echo "  Frontend:           ${FRONTEND_URL}/products"
+echo "  Backend API:        ${BACKEND_URL}"
 echo
 echo "Logs:"
 echo "  tail -f logs/backend.log"

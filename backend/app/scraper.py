@@ -63,6 +63,11 @@ def _first(selectors, css: str):
     return matches[0] if matches else None
 
 
+def _aed_price(text: str) -> str | None:
+    cleaned = sub(r"^(D|\ue001)\s*", "AED ", text).strip()
+    return cleaned or None
+
+
 def _asin(card, href: str) -> str:
     value = card.attrib.get("data-asin") or card.attrib.get("data-csa-c-item-id", "")
     if value.startswith("amzn1.asin."):
@@ -99,9 +104,128 @@ def _amazon_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
     return items
 
 
+def _carrefour_key(href: str) -> str:
+    match = search(r"/p/([^/?#]+)", href)
+    return match.group(1) if match else href
+
+
+def _carrefour_price(card) -> str | None:
+    whole_node = _first(card, "span[class*='text-lg']")
+    whole = _text(whole_node) if whole_node else ""
+    price_parts = [_text(part) for part in card.css("div[class*='text-2xs']")[:2]]
+    if not whole or len(price_parts) < 2:
+        return None
+    fraction, currency = price_parts
+    return f"{currency} {whole}{fraction}"
+
+
+def _carrefour_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
+    seen: set[str] = set()
+    items: list[ScrapedItem] = []
+    for card in page.css("div[style*='grid-column:span 3']"):
+        link = next((link for link in card.css("a[href*='/mafuae/en/'][href*='/p/']") if _text(link)), None)
+        if not link:
+            continue
+        href = link.attrib.get("href", "")
+        title_node = _first(link, "div[class*='line-clamp-2']")
+        title = _text(title_node) if title_node else _text(link)
+        if not href or not title:
+            continue
+        key = _carrefour_key(href)
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(ScrapedItem(len(items) + 1, title, urljoin(search_url, href), _carrefour_price(card)))
+        if len(items) >= settings.scrape_max_results:
+            return items
+    return items
+
+
+def _sharafdg_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
+    seen: set[str] = set()
+    items: list[ScrapedItem] = []
+    for card in page.css("#hits .algolia-item, .algolia-item"):
+        link = _first(card, "a.product-link[href]")
+        if not link:
+            continue
+        href = link.attrib.get("href", "")
+        title_node = _first(link, "h4.name")
+        title = (_text(title_node) if title_node else "") or link.attrib.get("title", "").strip() or _text(link)
+        if not href or not title:
+            continue
+        key = link.attrib.get("data-objectid") or href
+        if key in seen:
+            continue
+        seen.add(key)
+        price_node = _first(card, ".product-price .price")
+        items.append(ScrapedItem(len(items) + 1, title, urljoin(search_url, href), _aed_price(_text(price_node)) if price_node else None))
+        if len(items) >= settings.scrape_max_results:
+            return items
+    return items
+
+
+def _noon_blocked(page: Adaptor) -> bool:
+    return bool(page.css("a[href*='akamai.com/privacy']")) and not page.css("a[href*='/uae-en/'][href*='/p/']")
+
+
+def _noon_price(card) -> tuple[str | None, str]:
+    amount_node = _first(card, "[data-qa='plp-product-box-price'] strong[class*='_amount']")
+    amount = _text(amount_node) if amount_node else ""
+    return (f"AED {amount}" if amount else None, amount)
+
+
+def _noon_title(card, amount: str) -> str:
+    for css in ["[data-qa='product-name']", "[data-qa='plp-product-name']", "[class*='productName']", "[class*='title']"]:
+        node = _first(card, css)
+        if node:
+            return _text(node)
+    title = _text(card)
+    if amount and amount in title:
+        title = title.split(amount, 1)[0]
+    return sub(r"\ue001\s*$", "", title).strip()
+
+
+def _noon_key(href: str) -> str:
+    match = search(r"/([^/]+)/p/", href)
+    return match.group(1) if match else href
+
+
+def _noon_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
+    seen: set[str] = set()
+    items: list[ScrapedItem] = []
+    for link in page.css("a[href*='/uae-en/'][href*='/p/']"):
+        href = link.attrib.get("href", "")
+        price, amount = _noon_price(link)
+        title = _noon_title(link, amount)
+        if not href or not title:
+            continue
+        key = _noon_key(href)
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(ScrapedItem(len(items) + 1, title, urljoin(search_url, href), price))
+        if len(items) >= settings.scrape_max_results:
+            return items
+    return items
+
+
 def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[ScrapedItem]:
     if marketplace == "amazon":
         items = _amazon_items(page, search_url)
+        if items:
+            return items
+    if marketplace == "noon":
+        items = _noon_items(page, search_url)
+        if items:
+            return items
+        if _noon_blocked(page):
+            raise RuntimeError("Noon blocked request: Akamai privacy page")
+    if marketplace == "sharafdg":
+        items = _sharafdg_items(page, search_url)
+        if items:
+            return items
+    if marketplace == "carrefour":
+        items = _carrefour_items(page, search_url)
         if items:
             return items
 

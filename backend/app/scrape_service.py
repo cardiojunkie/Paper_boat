@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from .database import SessionLocal
@@ -42,17 +42,30 @@ def create_scrape_jobs(db: Session, payload: ScrapeJobCreate) -> list[ScrapeJob]
         db.flush()
         jobs.append(job)
         for marketplace in marketplaces:
-            db.add(
-                ScrapeResult(
-                    scrape_job_id=job.id,
-                    product_id=product.id,
-                    sku=product.sku,
-                    marketplace=marketplace,
-                    search_query=search_query,
-                    search_url=build_search_url(marketplace, search_query),
-                    status="queued",
+            result = db.execute(
+                select(ScrapeResult).where(ScrapeResult.product_id == product.id, ScrapeResult.marketplace == marketplace)
+            ).scalar_one_or_none()
+            if result is None:
+                db.add(
+                    ScrapeResult(
+                        scrape_job_id=job.id,
+                        product_id=product.id,
+                        sku=product.sku,
+                        marketplace=marketplace,
+                        search_query=search_query,
+                        search_url=build_search_url(marketplace, search_query),
+                        status="queued",
+                    )
                 )
-            )
+            else:
+                result.scrape_job_id = job.id
+                result.sku = product.sku
+                result.search_query = search_query
+                result.search_url = build_search_url(marketplace, search_query)
+                result.status = "queued"
+                result.result_count = 0
+                result.error_message = None
+                db.add(result)
     db.commit()
     for job in jobs:
         db.refresh(job)
@@ -78,6 +91,7 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
         results = list(db.execute(select(ScrapeResult).where(ScrapeResult.scrape_job_id == job_id)).scalars())
         for result in results:
             result.status = "running"
+            db.execute(delete(ScrapeResultItem).where(ScrapeResultItem.scrape_result_id == result.id))
             db.commit()
             error = None
             items = []

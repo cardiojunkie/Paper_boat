@@ -118,4 +118,4 @@ Marketplace URL templates:
 - Sharaf DG: `https://uae.sharafdg.com/?q={query_percent}&post_type=product`
 - Carrefour: `https://www.carrefouruae.com/mafuae/en/search?keyword={query_percent}`
 
-Phase 2 uses Scrapling's static fetcher. Sites that block scraping are recorded as per-marketplace failures; proxy/CAPTCHA handling is intentionally deferred.
+Phase 2 uses Scrapling's static fetcher. Sites that block scraping are recorded as per-marketplace failures; proxy/CAPTCHA handling is intentionally deferred.  

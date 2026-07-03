@@ -167,6 +167,14 @@ class ScrapeJobCreateResponse(BaseModel):
     jobs: list[ScrapeJobCreated]
 
 
+class ScrapeMarkdownUpdate(BaseModel):
+    content: str
+
+
+class ScrapeMarkdownOut(BaseModel):
+    content: str
+
+
 class ScrapeResultItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

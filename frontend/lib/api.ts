@@ -81,6 +81,23 @@ export function scrapeMarkdownUrl(resultId: string) {
   return `/api/scrape-results/${resultId}/markdown`;
 }
 
+export async function getScrapeMarkdown(resultId: string) {
+  const response = await fetch(scrapeMarkdownUrl(resultId));
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail ?? response.statusText);
+  }
+  return response.text();
+}
+
+export function updateScrapeMarkdown(resultId: string, content: string) {
+  return request<{ content: string }>(scrapeMarkdownUrl(resultId), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}
+
 export function getFilterOptions(field: string, filters: ProductFilters) {
   const params = new URLSearchParams({ field });
   appendFilters(params, filters);

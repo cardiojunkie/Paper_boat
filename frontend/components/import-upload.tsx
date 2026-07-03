@@ -5,8 +5,8 @@ import { useMutation } from "@tanstack/react-query";
 
 import { uploadImport } from "../lib/api";
 
-export function ImportUpload() {
-  const mutation = useMutation({ mutationFn: uploadImport });
+export function ImportUpload({ onImported }: { onImported?: () => void }) {
+  const mutation = useMutation({ mutationFn: uploadImport, onSuccess: () => onImported?.() });
   const result = mutation.data;
 
   return (

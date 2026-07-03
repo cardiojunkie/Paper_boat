@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Product, ScrapeResult
+from backend.app.models import Product, ScrapeJob, ScrapeResult, ScrapeResultItem
 from backend.app.schemas import ProductFilter
 from backend.app.services import import_products, preview_delete
 from backend.tests.conftest import workbook_bytes, xls_workbook_bytes
@@ -162,6 +162,46 @@ def test_scrape_job_api_with_mocked_scraper(client: TestClient, db: Session, mon
     assert "AED 10.00" in markdown.text
 
 
+def test_scrape_markdown_can_be_edited(client: TestClient, db: Session, tmp_path) -> None:
+    path = tmp_path / "result.md"
+    path.write_text("old markdown", encoding="utf-8")
+    product = Product(sku="SKU1", title="Washer", attributes={}, source_row={})
+    job = ScrapeJob(requested_product_ids=[], marketplaces=["amazon"], total_targets=1)
+    db.add_all([product, job])
+    db.flush()
+    result = ScrapeResult(
+        scrape_job_id=job.id,
+        product_id=product.id,
+        sku=product.sku,
+        marketplace="amazon",
+        search_query="washer",
+        search_url="https://example.test/search",
+        status="completed",
+        markdown_path=str(path),
+    )
+    missing_markdown = ScrapeResult(
+        scrape_job_id=job.id,
+        product_id=product.id,
+        sku=product.sku,
+        marketplace="noon",
+        search_query="washer",
+        search_url="https://example.test/noon",
+        status="queued",
+    )
+    db.add_all([result, missing_markdown])
+    db.commit()
+
+    assert client.get(f"/api/scrape-results/{result.id}/markdown").text == "old markdown"
+
+    response = client.put(f"/api/scrape-results/{result.id}/markdown", json={"content": "edited markdown"})
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "edited markdown"
+    assert path.read_text(encoding="utf-8") == "edited markdown"
+    assert client.get(f"/api/scrape-results/{result.id}/markdown").text == "edited markdown"
+    assert client.put(f"/api/scrape-results/{missing_markdown.id}/markdown", json={"content": "new"}).status_code == 404
+
+
 def test_scrape_job_creation_is_one_job_per_sku(client: TestClient, db: Session, monkeypatch) -> None:
     from backend.app import api
 
@@ -180,3 +220,53 @@ def test_scrape_job_creation_is_one_job_per_sku(client: TestClient, db: Session,
 
     assert response.status_code == 200
     assert len(response.json()["jobs"]) == 2
+
+
+def test_rescrape_reuses_product_marketplace_result(client: TestClient, db: Session, monkeypatch, tmp_path) -> None:
+    from backend.app import api
+    from backend.app import scrape_service
+    from backend.app.config import settings
+    from backend.app.scraper import ScrapedItem
+
+    settings.scrape_output_dir = str(tmp_path)
+    product = Product(sku="SKU1", title="Washer", search_query="washing machine", attributes={}, source_row={})
+    db.add(product)
+    db.commit()
+    calls = 0
+
+    def fake_scrape(marketplace: str, search_url: str) -> list[ScrapedItem]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return [ScrapedItem(1, "old washer", f"{search_url}&old=1"), ScrapedItem(2, "stale washer", f"{search_url}&old=2")]
+        return [ScrapedItem(1, "new washer", f"{search_url}&new=1")]
+
+    def start_scrape() -> str:
+        response = client.post("/api/scrape-jobs", json={"product_ids": [str(product.id)], "marketplaces": ["amazon"]})
+        assert response.status_code == 200
+        job_id = response.json()["jobs"][0]["job_id"]
+        scrape_service.run_scrape_job(job_id, session_factory=lambda: db)
+        return job_id
+
+    monkeypatch.setattr(api, "run_scrape_jobs", lambda job_ids: None)
+    monkeypatch.setattr(scrape_service, "scrape_marketplace", fake_scrape)
+    first_job_id = start_scrape()
+    first_result = db.execute(
+        select(ScrapeResult).where(ScrapeResult.product_id == product.id, ScrapeResult.marketplace == "amazon")
+    ).scalar_one()
+    first_result_id = first_result.id
+    first_markdown_path = first_result.markdown_path
+
+    second_job_id = start_scrape()
+    results = db.execute(
+        select(ScrapeResult).where(ScrapeResult.product_id == product.id, ScrapeResult.marketplace == "amazon")
+    ).scalars().all()
+    items = db.execute(select(ScrapeResultItem).where(ScrapeResultItem.scrape_result_id == first_result_id)).scalars().all()
+
+    assert first_job_id != second_job_id
+    assert len(results) == 1
+    assert results[0].id == first_result_id
+    assert str(results[0].scrape_job_id) == second_job_id
+    assert results[0].markdown_path == first_markdown_path
+    assert results[0].markdown_path and results[0].markdown_path.endswith("SKU1_amazon.md")
+    assert [item.title for item in items] == ["new washer"]

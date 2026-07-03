@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from .database import get_db
 from .filters import FILTER_COLUMNS, apply_product_filters
@@ -25,6 +25,8 @@ from .schemas import (
     ProductOut,
     RowErrorOut,
     MarketplaceOut,
+    ScrapeMarkdownOut,
+    ScrapeMarkdownUpdate,
     ScrapeJobCreate,
     ScrapeJobCreated,
     ScrapeJobCreateResponse,
@@ -35,6 +37,18 @@ from .schemas import (
 from .services import create_sku_filter, delete_products, import_products, preview_delete
 
 router = APIRouter(prefix="/api")
+
+
+def scrape_markdown_path(result_id: uuid.UUID, db: Session) -> Path:
+    result = db.execute(select(ScrapeResult).where(ScrapeResult.id == result_id)).scalar_one_or_none()
+    if not result:
+        raise HTTPException(status_code=404, detail="Scrape result not found")
+    if not result.markdown_path:
+        raise HTTPException(status_code=404, detail="Markdown has not been generated")
+    path = Path(result.markdown_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Markdown file not found")
+    return path
 
 
 def product_filters(
@@ -158,17 +172,17 @@ def product_scrape_results(product_id: uuid.UUID, db: Session = Depends(get_db))
 
 @router.get("/scrape-results/{result_id}/markdown")
 def scrape_result_markdown(result_id: uuid.UUID, db: Session = Depends(get_db)) -> FileResponse:
-    result = db.execute(
-        select(ScrapeResult).where(ScrapeResult.id == result_id).options(selectinload(ScrapeResult.items))
-    ).scalar_one_or_none()
-    if not result:
-        raise HTTPException(status_code=404, detail="Scrape result not found")
-    if not result.markdown_path:
-        raise HTTPException(status_code=404, detail="Markdown has not been generated")
-    path = Path(result.markdown_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Markdown file not found")
-    return FileResponse(path, media_type="text/markdown", filename=path.name)
+    path = scrape_markdown_path(result_id, db)
+    return FileResponse(path, media_type="text/markdown")
+
+
+@router.put("/scrape-results/{result_id}/markdown", response_model=ScrapeMarkdownOut)
+def update_scrape_result_markdown(
+    result_id: uuid.UUID, payload: ScrapeMarkdownUpdate, db: Session = Depends(get_db)
+) -> ScrapeMarkdownOut:
+    path = scrape_markdown_path(result_id, db)
+    path.write_text(payload.content, encoding="utf-8")
+    return ScrapeMarkdownOut(content=payload.content)
 
 
 @router.post("/product-filters/sku-file", response_model=SkuFileFilterResponse)

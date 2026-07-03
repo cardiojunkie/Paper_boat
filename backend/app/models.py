@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON, Uuid
@@ -120,6 +120,7 @@ class ScrapeResult(Base):
     __tablename__ = "scrape_results"
     __table_args__ = (
         CheckConstraint("status in ('queued','running','completed','failed')", name="ck_scrape_results_status"),
+        UniqueConstraint("product_id", "marketplace", name="uq_scrape_results_product_marketplace"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
