@@ -155,6 +155,10 @@ th {
   color: var(--danger);
 }
 
+.url {
+  overflow-wrap: anywhere;
+}
+
 .grid {
   display: grid;
   gap: 16px;

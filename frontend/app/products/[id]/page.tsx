@@ -59,8 +59,8 @@ export default function ProductDetailPage() {
                       <td>{result.status}</td>
                       <td>{result.result_count}</td>
                       <td>
-                        <a href={result.search_url} target="_blank" rel="noreferrer">
-                          Open
+                        <a className="url" href={result.search_url} target="_blank" rel="noreferrer">
+                          {result.search_url}
                         </a>
                       </td>
                       <td>
