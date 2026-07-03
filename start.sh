@@ -10,11 +10,14 @@ rm -rf frontend/.next .pytest_cache
 find backend frontend -type d \( -name __pycache__ -o -name .pytest_cache \) -prune -exec rm -rf {} +
 
 if [[ ! -x "$PY" ]]; then
-  python -m venv backend/.venv
+  python3 -m venv backend/.venv
 fi
 
 echo "Installing backend dependencies..."
 "$PY" -m pip install -r backend/requirements.txt >/dev/null
+
+echo "Installing frontend dependencies..."
+npm install --prefix frontend --no-audit --no-fund >/dev/null
 
 echo "Freeing ports 8000 and 3000..."
 fuser -k 8000/tcp 3000/tcp >/dev/null 2>&1 || true
