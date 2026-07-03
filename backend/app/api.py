@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 from .database import get_db
 from .filters import FILTER_COLUMNS, apply_product_filters
 from .models import ImportJob, ImportRowError, Product, ScrapeResult
-from .scrape_service import create_scrape_job, get_scrape_job, latest_product_scrape_results, run_scrape_job
+from .scrape_service import create_scrape_jobs, get_scrape_job, latest_product_scrape_results, run_scrape_jobs
 from .scraper import MARKETPLACES
 from .schemas import (
     BulkDeleteRequest,
@@ -27,6 +27,7 @@ from .schemas import (
     MarketplaceOut,
     ScrapeJobCreate,
     ScrapeJobCreated,
+    ScrapeJobCreateResponse,
     ScrapeJobOut,
     ScrapeResultOut,
     SkuFileFilterResponse,
@@ -115,15 +116,15 @@ def marketplaces() -> list[MarketplaceOut]:
     return [MarketplaceOut(key=key, label=value["label"], enabled=True) for key, value in MARKETPLACES.items()]
 
 
-@router.post("/scrape-jobs", response_model=ScrapeJobCreated)
+@router.post("/scrape-jobs", response_model=ScrapeJobCreateResponse)
 def start_scrape_job(
     payload: ScrapeJobCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-) -> ScrapeJobCreated:
-    job = create_scrape_job(db, payload)
-    background_tasks.add_task(run_scrape_job, job.id)
-    return ScrapeJobCreated(job_id=job.id, status=job.status)
+) -> ScrapeJobCreateResponse:
+    jobs = create_scrape_jobs(db, payload)
+    background_tasks.add_task(run_scrape_jobs, [job.id for job in jobs])
+    return ScrapeJobCreateResponse(jobs=[ScrapeJobCreated(job_id=job.id, status=job.status) for job in jobs])
 
 
 @router.get("/scrape-jobs/{job_id}", response_model=ScrapeJobOut)

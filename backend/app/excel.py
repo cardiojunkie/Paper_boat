@@ -7,16 +7,19 @@ from typing import Any
 from zipfile import BadZipFile
 
 from openpyxl import load_workbook
+from xlrd import open_workbook
 
 CANONICAL_ALIASES = {
     "sku": "sku",
     "title": "title",
+    "name": "title",
     "bullet points": "bullet_points",
     "bullet_points": "bullet_points",
     "specs": "specs",
     "category": "category",
     "product type": "product_type",
     "product_type": "product_type",
+    "attributes lulu product type": "product_type",
     "attribute set": "attribute_set",
     "attribute_set": "attribute_set",
     "search query": "search_query",
@@ -80,21 +83,7 @@ def normalize_sku(value: Any) -> str:
     return str(value).strip()
 
 
-def parse_xlsx(content: bytes, filename: str, max_rows: int) -> ParseResult:
-    if not filename.lower().endswith(".xlsx"):
-        raise ValueError("Only .xlsx files are accepted")
-    try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
-    except (BadZipFile, KeyError, OSError) as exc:
-        raise ValueError("Invalid .xlsx workbook") from exc
-
-    sheet = workbook.active
-    rows = sheet.iter_rows(values_only=True)
-    try:
-        raw_headers = next(rows)
-    except StopIteration as exc:
-        raise ValueError("Workbook is empty") from exc
-
+def _parse_rows(raw_headers: tuple[Any, ...] | list[Any], rows: Any, max_rows: int) -> ParseResult:
     headers = ["" if header is None else str(header).strip() for header in raw_headers]
     canonical_by_index = [CANONICAL_ALIASES.get(normalize_header(header)) for header in headers]
     if "sku" not in canonical_by_index:
@@ -106,7 +95,7 @@ def parse_xlsx(content: bytes, filename: str, max_rows: int) -> ParseResult:
     seen: dict[str, list[int]] = defaultdict(list)
     total_rows = 0
 
-    for excel_row_number, row_values in enumerate(rows, start=2):
+    for excel_row_number, row_values in rows:
         if total_rows >= max_rows:
             raise ValueError(f"Workbook exceeds configured row limit of {max_rows}")
         values = list(row_values)
@@ -146,3 +135,33 @@ def parse_xlsx(content: bytes, filename: str, max_rows: int) -> ParseResult:
         parsed = [row for row in parsed if row.sku not in duplicate_set]
 
     return ParseResult(total_rows, parsed, errors, duplicate_skus)
+
+
+def parse_xlsx(content: bytes, filename: str, max_rows: int) -> ParseResult:
+    lower = filename.lower()
+    if lower.endswith(".xlsx"):
+        try:
+            workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+        except (BadZipFile, KeyError, OSError) as exc:
+            raise ValueError("Invalid .xlsx workbook") from exc
+
+        sheet = workbook.active
+        rows = sheet.iter_rows(values_only=True)
+        try:
+            raw_headers = next(rows)
+        except StopIteration as exc:
+            raise ValueError("Workbook is empty") from exc
+        return _parse_rows(raw_headers, enumerate(rows, start=2), max_rows)
+
+    if lower.endswith(".xls"):
+        try:
+            workbook = open_workbook(file_contents=content, on_demand=True)
+            sheet = workbook.sheet_by_index(0)
+        except Exception as exc:
+            raise ValueError("Invalid .xls workbook") from exc
+        if sheet.nrows == 0:
+            raise ValueError("Workbook is empty")
+        rows = ((index + 1, sheet.row_values(index)) for index in range(1, sheet.nrows))
+        return _parse_rows(sheet.row_values(0), rows, max_rows)
+
+    raise ValueError("Only .xlsx or .xls files are accepted")

@@ -163,6 +163,10 @@ class ScrapeJobCreated(BaseModel):
     status: str
 
 
+class ScrapeJobCreateResponse(BaseModel):
+    jobs: list[ScrapeJobCreated]
+
+
 class ScrapeResultItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

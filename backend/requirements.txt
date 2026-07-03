@@ -5,6 +5,7 @@ fastapi
 httpx
 msgspec
 openpyxl
+xlrd
 playwright
 psycopg[binary]
 pydantic-settings

@@ -11,7 +11,7 @@ from .scraper import MARKETPLACES, build_search_url, scrape_marketplace, write_m
 from .schemas import ScrapeJobCreate
 
 
-def create_scrape_job(db: Session, payload: ScrapeJobCreate) -> ScrapeJob:
+def create_scrape_jobs(db: Session, payload: ScrapeJobCreate) -> list[ScrapeJob]:
     product_ids = list(dict.fromkeys(payload.product_ids))
     marketplaces = list(dict.fromkeys(payload.marketplaces))
     if not product_ids:
@@ -19,24 +19,28 @@ def create_scrape_job(db: Session, payload: ScrapeJobCreate) -> ScrapeJob:
     if not marketplaces:
         raise HTTPException(status_code=400, detail="Select at least one marketplace")
 
-    products = list(db.execute(select(Product).where(Product.id.in_(product_ids))).scalars())
-    found_ids = {product.id for product in products}
+    products_by_id = {product.id: product for product in db.execute(select(Product).where(Product.id.in_(product_ids))).scalars()}
+    found_ids = set(products_by_id)
     missing = [str(product_id) for product_id in product_ids if product_id not in found_ids]
     if missing:
         raise HTTPException(status_code=404, detail=f"Products not found: {', '.join(missing)}")
+    products = [products_by_id[product_id] for product_id in product_ids]
 
-    missing_query = [product.sku for product in products if not product.search_query]
+    missing_query = [product.sku for product in products if not (product.search_query or product.title)]
     if missing_query:
         raise HTTPException(status_code=400, detail=f"Products missing search_query: {', '.join(missing_query)}")
 
-    job = ScrapeJob(
-        requested_product_ids=[str(product_id) for product_id in product_ids],
-        marketplaces=[str(marketplace) for marketplace in marketplaces],
-        total_targets=len(products) * len(marketplaces),
-    )
-    db.add(job)
-    db.flush()
+    jobs = []
     for product in products:
+        search_query = product.search_query or product.title or ""
+        job = ScrapeJob(
+            requested_product_ids=[str(product.id)],
+            marketplaces=[str(marketplace) for marketplace in marketplaces],
+            total_targets=len(marketplaces),
+        )
+        db.add(job)
+        db.flush()
+        jobs.append(job)
         for marketplace in marketplaces:
             db.add(
                 ScrapeResult(
@@ -44,14 +48,20 @@ def create_scrape_job(db: Session, payload: ScrapeJobCreate) -> ScrapeJob:
                     product_id=product.id,
                     sku=product.sku,
                     marketplace=marketplace,
-                    search_query=product.search_query or "",
-                    search_url=build_search_url(marketplace, product.search_query or ""),
+                    search_query=search_query,
+                    search_url=build_search_url(marketplace, search_query),
                     status="queued",
                 )
             )
     db.commit()
-    db.refresh(job)
-    return job
+    for job in jobs:
+        db.refresh(job)
+    return jobs
+
+
+def run_scrape_jobs(job_ids: list[uuid.UUID], session_factory=SessionLocal) -> None:
+    for job_id in job_ids:
+        run_scrape_job(job_id, session_factory)
 
 
 def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:

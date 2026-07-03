@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { createScrapeJob, getMarketplaces, getScrapeJob } from "../lib/api";
@@ -9,23 +9,36 @@ import type { Marketplace } from "../lib/types";
 
 const terminal = new Set(["completed", "completed_with_errors", "failed"]);
 
-export function ScrapeControls({ selectedIds }: { selectedIds: string[] }) {
+export function ScrapeControls({ selectedIds, onStaleSelection }: { selectedIds: string[]; onStaleSelection: () => void }) {
+  const queryClient = useQueryClient();
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<Marketplace["key"][]>([]);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobIds, setJobIds] = useState<string[]>([]);
   const marketplaces = useQuery({ queryKey: ["marketplaces"], queryFn: getMarketplaces });
   const createJob = useMutation({
     mutationFn: () => createScrapeJob(selectedIds, selectedMarketplaces),
-    onSuccess: (data) => setJobId(data.job_id),
-  });
-  const job = useQuery({
-    queryKey: ["scrape-job", jobId],
-    queryFn: () => getScrapeJob(jobId as string),
-    enabled: Boolean(jobId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status && terminal.has(status) ? false : 1500;
+    onSuccess: (data) => setJobIds(data.jobs.map((job) => job.job_id)),
+    onError: (error) => {
+      if (error instanceof Error && error.message.includes("Products not found")) {
+        setJobIds([]);
+        onStaleSelection();
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      }
     },
   });
+  const jobs = useQueries({
+    queries: jobIds.map((jobId) => ({
+      queryKey: ["scrape-job", jobId],
+      queryFn: () => getScrapeJob(jobId),
+      refetchInterval: (query: { state: { data?: { status?: string } } }) => {
+        const status = query.state.data?.status;
+        return status && terminal.has(status) ? false : 1500;
+      },
+    })),
+  });
+  const jobData = jobs.map((job) => job.data).filter(Boolean);
+  const completed = jobData.filter((job) => job && terminal.has(job.status)).length;
+  const failed = jobData.filter((job) => job?.status === "failed" || job?.status === "completed_with_errors").length;
+  const jobError = jobs.find((job) => job.error)?.error;
 
   return (
     <div className="panel">
@@ -55,12 +68,12 @@ export function ScrapeControls({ selectedIds }: { selectedIds: string[] }) {
       </div>
       {marketplaces.error && <p className="error">{marketplaces.error.message}</p>}
       {createJob.error && <p className="error">{createJob.error.message}</p>}
-      {job.data && (
+      {jobIds.length > 0 && (
         <p className="muted">
-          Job {job.data.status}: {job.data.completed_targets} completed, {job.data.failed_targets} failed, {job.data.total_targets} total.
+          SKU jobs: {completed} done, {failed} with errors, {jobIds.length} total.
         </p>
       )}
-      {job.error && <p className="error">{job.error.message}</p>}
+      {jobError && <p className="error">{jobError.message}</p>}
     </div>
   );
 }

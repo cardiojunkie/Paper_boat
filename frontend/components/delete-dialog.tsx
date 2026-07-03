@@ -7,20 +7,38 @@ import { useState } from "react";
 import { deleteByFilter, deleteSelected, previewDelete } from "../lib/api";
 import type { ProductFilters } from "../lib/types";
 
-export function DeleteControls({ selectedIds, filters }: { selectedIds: string[]; filters: ProductFilters }) {
+export function DeleteControls({
+  selectedIds,
+  filters,
+  onDeleted,
+}: {
+  selectedIds: string[];
+  filters: ProductFilters;
+  onDeleted: () => void;
+}) {
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState<{ count: number; phrase: string } | null>(null);
   const [confirmation, setConfirmation] = useState("");
-  const selectedDelete = useMutation({ mutationFn: deleteSelected, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }) });
+  const [message, setMessage] = useState("");
+  const selectedDelete = useMutation({
+    mutationFn: deleteSelected,
+    onSuccess: (data) => {
+      setMessage(`Deleted ${data.deleted_count} products`);
+      onDeleted();
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
   const filterPreview = useMutation({
     mutationFn: () => previewDelete(filters),
     onSuccess: (data) => setPreview({ count: data.count, phrase: data.confirmation_phrase }),
   });
   const filterDelete = useMutation({
     mutationFn: () => deleteByFilter(filters, preview?.count ?? 0, confirmation),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setMessage(`Deleted ${data.deleted_count} products`);
       setPreview(null);
       setConfirmation("");
+      onDeleted();
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
@@ -36,6 +54,7 @@ export function DeleteControls({ selectedIds, filters }: { selectedIds: string[]
           Preview delete matching filters
         </button>
       </div>
+      {message && <p className="muted">{message}</p>}
       {selectedDelete.error && <p className="error">{selectedDelete.error.message}</p>}
       {filterPreview.error && <p className="error">{filterPreview.error.message}</p>}
       {preview && (

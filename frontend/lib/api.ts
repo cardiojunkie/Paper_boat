@@ -7,6 +7,7 @@ import type {
   ProductFilters,
   ProductListResponse,
   ScrapeJob,
+  ScrapeJobCreateResponse,
   ScrapeResult,
   SkuFilterResult,
 } from "./types";
@@ -61,7 +62,7 @@ export function getMarketplaces() {
 }
 
 export function createScrapeJob(productIds: string[], marketplaces: Marketplace["key"][]) {
-  return request<{ job_id: string; status: string }>("/api/scrape-jobs", {
+  return request<ScrapeJobCreateResponse>("/api/scrape-jobs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ product_ids: productIds, marketplaces }),

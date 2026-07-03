@@ -1,7 +1,7 @@
 import pytest
 
 from backend.app.excel import normalize_header, parse_xlsx
-from backend.tests.conftest import workbook_bytes
+from backend.tests.conftest import workbook_bytes, xls_workbook_bytes
 
 
 def test_header_normalization_aliases() -> None:
@@ -10,7 +10,7 @@ def test_header_normalization_aliases() -> None:
 
 
 def test_parse_preserves_unknown_headers_and_blank_cells() -> None:
-    content = workbook_bytes(["SKU", "Product Type", "Mystery"], [["00123", "Phone", None]])
+    content = workbook_bytes(["SKU", "attributes__lulu_product_type", "Mystery"], [["00123", "Phone", None]])
     result = parse_xlsx(content, "products.xlsx", 100)
 
     row = result.valid_rows[0]
@@ -25,6 +25,22 @@ def test_parse_search_query_aliases() -> None:
     result = parse_xlsx(content, "products.xlsx", 100)
 
     assert result.valid_rows[0].core["search_query"] == "washing machine"
+
+
+def test_parse_name_aliases_title() -> None:
+    content = workbook_bytes(["SKU", "name"], [["00123", "Washing Machine"]])
+    result = parse_xlsx(content, "products.xlsx", 100)
+
+    assert result.valid_rows[0].core["title"] == "Washing Machine"
+
+
+def test_parse_legacy_xls() -> None:
+    result = parse_xlsx(xls_workbook_bytes(), "products.xls", 100)
+
+    row = result.valid_rows[0]
+    assert row.sku == "00123"
+    assert row.core["title"] == "Legacy Washer"
+    assert row.core["product_type"] == "Appliance"
 
 
 def test_missing_sku_header_fails() -> None:
@@ -42,5 +58,10 @@ def test_missing_and_duplicate_skus_are_errors() -> None:
 
 
 def test_invalid_extension_rejected() -> None:
-    with pytest.raises(ValueError, match="Only .xlsx"):
+    with pytest.raises(ValueError, match="Only .xlsx or .xls"):
+        parse_xlsx(b"not excel", "products.csv", 100)
+
+
+def test_invalid_xls_rejected() -> None:
+    with pytest.raises(ValueError, match="Invalid .xls"):
         parse_xlsx(b"not excel", "products.xls", 100)

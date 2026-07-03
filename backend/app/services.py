@@ -95,6 +95,7 @@ def import_products(db: Session, content: bytes, filename: str) -> ImportJob:
                     "updated_at": now,
                 }
                 payload.update({name: row.core.get(name) for name in CORE_NAMES})
+                payload["search_query"] = payload["search_query"] or payload["title"]
                 values.append(payload)
             _upsert_products(db, values, now)
 

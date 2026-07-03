@@ -18,7 +18,7 @@ export function SkuFilterUpload({ filters, onChange }: { filters: ProductFilters
           <input
             hidden
             type="file"
-            accept=".xlsx"
+            accept=".xls,.xlsx"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file) return;

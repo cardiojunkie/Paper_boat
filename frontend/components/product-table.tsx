@@ -10,18 +10,24 @@ const column = createColumnHelper<ProductListItem>();
 const columns = [
   column.display({
     id: "select",
-    header: "",
+    header: ({ table }) => (
+      <input
+        aria-label="Select visible rows"
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+      />
+    ),
     cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />,
   }),
   column.accessor("sku", { header: "SKU" }),
   column.accessor("title", { header: "Title", cell: (info) => info.getValue() ?? "" }),
   column.accessor("product_type", { header: "Product Type", cell: (info) => info.getValue() ?? "" }),
   column.accessor("attribute_set", { header: "Attribute Set", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("category", { header: "Category", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l1", { header: "L1", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l2", { header: "L2", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l3", { header: "L3", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l4", { header: "L4", cell: (info) => info.getValue() ?? "" }),
+  column.accessor("l1", { header: "Cat L1", cell: (info) => info.getValue() ?? "" }),
+  column.accessor("l2", { header: "Cat L2", cell: (info) => info.getValue() ?? "" }),
+  column.accessor("l3", { header: "Cat L3", cell: (info) => info.getValue() ?? "" }),
+  column.accessor("l4", { header: "Cat L4", cell: (info) => info.getValue() ?? "" }),
   column.accessor("search_query", { header: "Search Query", cell: (info) => info.getValue() ?? "" }),
   column.accessor("updated_at", { header: "Last Updated", cell: (info) => new Date(info.getValue()).toLocaleString() }),
   column.display({

@@ -14,11 +14,11 @@ export function ImportUpload() {
       <div className="panel">
         <div className="row">
           <label className="button primary">
-            <Upload size={16} /> Upload .xlsx
+            <Upload size={16} /> Upload .xls/.xlsx
             <input
               hidden
               type="file"
-              accept=".xlsx"
+              accept=".xls,.xlsx"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) mutation.mutate(file);

@@ -114,3 +114,7 @@ export type ScrapeJob = {
   error_summary: string | null;
   results: ScrapeResult[];
 };
+
+export type ScrapeJobCreateResponse = {
+  jobs: { job_id: string; status: string }[];
+};

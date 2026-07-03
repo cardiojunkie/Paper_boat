@@ -17,6 +17,7 @@ export default function ProductsPage() {
   const [sort, setSort] = useState("updated_at");
   const [direction, setDirection] = useState("desc");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const clearSelection = () => setSelected({});
   const query = useQuery({
     queryKey: ["products", filters, page, pageSize, sort, direction],
     queryFn: () => listProducts(filters, page, pageSize, sort, direction),
@@ -31,10 +32,17 @@ export default function ProductsPage() {
         filters={filters}
         onChange={(next) => {
           setPage(1);
+          clearSelection();
           setFilters(next);
         }}
       />
-      <SkuFilterUpload filters={filters} onChange={setFilters} />
+      <SkuFilterUpload
+        filters={filters}
+        onChange={(next) => {
+          clearSelection();
+          setFilters(next);
+        }}
+      />
       <div className="panel">
         <div className="row">
           <select className="select" value={sort} onChange={(event) => setSort(event.target.value)}>
@@ -71,8 +79,8 @@ export default function ProductsPage() {
           Next
         </button>
       </div>
-      <DeleteControls selectedIds={selectedIds} filters={filters} />
-      <ScrapeControls selectedIds={selectedIds} />
+      <DeleteControls selectedIds={selectedIds} filters={filters} onDeleted={clearSelection} />
+      <ScrapeControls selectedIds={selectedIds} onStaleSelection={clearSelection} />
     </main>
   );
 }
