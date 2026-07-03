@@ -173,6 +173,7 @@ class ScrapeResultItemOut(BaseModel):
     position: int
     title: str
     url: str
+    price: str | None
 
 
 class ScrapeResultOut(BaseModel):

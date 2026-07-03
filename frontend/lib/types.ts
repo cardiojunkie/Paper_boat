@@ -83,6 +83,7 @@ export type ScrapeResultItem = {
   position: number;
   title: string;
   url: string;
+  price: string | null;
 };
 
 export type ScrapeResult = {

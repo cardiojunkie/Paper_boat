@@ -86,7 +86,7 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
                 result.status = "completed"
                 result.result_count = len(items)
                 db.add_all(
-                    ScrapeResultItem(scrape_result_id=result.id, position=item.position, title=item.title, url=item.url)
+                    ScrapeResultItem(scrape_result_id=result.id, position=item.position, title=item.title, url=item.url, price=item.price)
                     for item in items
                 )
                 job.completed_targets += 1

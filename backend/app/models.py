@@ -149,6 +149,7 @@ class ScrapeResultItem(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[str | None] = mapped_column(Text)
     result: Mapped[ScrapeResult] = relationship(back_populates="items")
 
 

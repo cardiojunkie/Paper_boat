@@ -135,7 +135,7 @@ def test_scrape_job_api_with_mocked_scraper(client: TestClient, db: Session, mon
     db.commit()
 
     def fake_scrape(marketplace: str, search_url: str) -> list[ScrapedItem]:
-        return [ScrapedItem(1, f"{marketplace} washer", f"{search_url}&p=1")]
+        return [ScrapedItem(1, f"{marketplace} washer", f"{search_url}&p=1", "AED 10.00")]
 
     monkeypatch.setattr(api, "run_scrape_jobs", lambda job_ids: None)
     monkeypatch.setattr(scrape_service, "scrape_marketplace", fake_scrape)
@@ -154,10 +154,12 @@ def test_scrape_job_api_with_mocked_scraper(client: TestClient, db: Session, mon
     assert results[0]["marketplace"] == "amazon"
     assert results[0]["result_count"] == 1
     assert results[0]["items"][0]["title"] == "amazon washer"
+    assert results[0]["items"][0]["price"] == "AED 10.00"
 
     markdown = client.get(f"/api/scrape-results/{results[0]['id']}/markdown")
     assert markdown.status_code == 200
     assert "SKU/1" in markdown.text
+    assert "AED 10.00" in markdown.text
 
 
 def test_scrape_job_creation_is_one_job_per_sku(client: TestClient, db: Session, monkeypatch) -> None:

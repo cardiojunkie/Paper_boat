@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from re import sub
+from re import search, sub
 from time import sleep
 from urllib.parse import quote, quote_plus, urljoin
 
@@ -40,6 +40,7 @@ class ScrapedItem:
     position: int
     title: str
     url: str
+    price: str | None = None
 
 
 def build_search_url(marketplace: str, query: str) -> str:
@@ -57,7 +58,53 @@ def _text(selector) -> str:
     return sub(r"\s+", " ", text).strip()
 
 
+def _first(selectors, css: str):
+    matches = selectors.css(css)
+    return matches[0] if matches else None
+
+
+def _asin(card, href: str) -> str:
+    value = card.attrib.get("data-asin") or card.attrib.get("data-csa-c-item-id", "")
+    if value.startswith("amzn1.asin."):
+        value = value.rsplit(".", 1)[-1]
+    match = search(r"/dp/([A-Z0-9]{10})", href)
+    return value or (match.group(1) if match else href)
+
+
+def _amazon_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
+    seen: set[str] = set()
+    items: list[ScrapedItem] = []
+    cards = [
+        *page.css("[data-cy='asin-faceout-container']"),
+        *page.css("[data-component-type='s-search-result']"),
+        *page.css("[data-cel-widget^='MAIN-SEARCH_RESULTS']"),
+    ]
+    for card in cards:
+        link = _first(card, "a[href*='/dp/']")
+        if not link:
+            continue
+        href = link.attrib.get("href", "")
+        title_node = _first(card, "h2[aria-label]")
+        title = title_node.attrib.get("aria-label", "").strip() if title_node else _text(link)
+        if not href or not title:
+            continue
+        key = _asin(card, href)
+        if key in seen:
+            continue
+        seen.add(key)
+        price_node = _first(card, ".a-price .a-offscreen")
+        items.append(ScrapedItem(len(items) + 1, title, urljoin(search_url, href), _text(price_node) if price_node else None))
+        if len(items) >= settings.scrape_max_results:
+            return items
+    return items
+
+
 def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[ScrapedItem]:
+    if marketplace == "amazon":
+        items = _amazon_items(page, search_url)
+        if items:
+            return items
+
     seen: set[str] = set()
     items: list[ScrapedItem] = []
     selectors = [*MARKETPLACES[marketplace]["selectors"], "a[href]"]
@@ -78,8 +125,7 @@ def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[S
 
 
 def scrape_marketplace(marketplace: str, search_url: str) -> list[ScrapedItem]:
-    Fetcher.configure(timeout=settings.scrape_timeout_seconds)
-    page = Fetcher().get(search_url)
+    page = Fetcher.get(search_url, timeout=settings.scrape_timeout_seconds)
     if settings.scrape_delay_seconds:
         sleep(settings.scrape_delay_seconds)
     return _items_from_page(page, marketplace, search_url)
@@ -106,6 +152,7 @@ def write_markdown(sku: str, marketplace: str, search_query: str, search_url: st
         if not items:
             lines.append("No products found.")
         for item in items:
-            lines.append(f"{item.position}. [{item.title}]({item.url})")
+            price = f" - {item.price}" if item.price else ""
+            lines.append(f"{item.position}. [{item.title}]({item.url}){price}")
     path.write_text("\n".join(lines), encoding="utf-8")
     return str(path)
