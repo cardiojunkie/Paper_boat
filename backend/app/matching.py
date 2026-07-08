@@ -84,6 +84,7 @@ def _match_input(product: Product, result: ScrapeResult, items: list[ScrapeResul
         "product": {
             "sku": product.sku,
             "title": product.title,
+            "product_url": product.product_url,
             "bullet_points": product.bullet_points,
             "specs": product.specs,
             "category": product.category,
@@ -160,6 +161,7 @@ def _set_no_match(result: ScrapeResult, reason: str, response: dict | None = Non
     result.match_model = settings.openrouter_model
     result.match_error_message = None
     result.matched_at = datetime.now(UTC)
+    result.review_status = "pending"
 
 
 def _apply_decision(result: ScrapeResult, decision: MatchDecision, item_ids: set[str]) -> None:
@@ -172,6 +174,7 @@ def _apply_decision(result: ScrapeResult, decision: MatchDecision, item_ids: set
         result.match_response = response
         result.match_error_message = None
         result.matched_at = datetime.now(UTC)
+        result.review_status = "pending"
         return
     _set_no_match(result, decision.reason, response)
 
@@ -202,6 +205,7 @@ def match_scrape_result(db: Session, result_id: uuid.UUID) -> ScrapeResult:
     result.match_reason = None
     result.match_error_message = None
     result.match_model = settings.openrouter_model
+    result.review_status = "pending"
     db.commit()
 
     try:
@@ -218,6 +222,7 @@ def match_scrape_result(db: Session, result_id: uuid.UUID) -> ScrapeResult:
         result.match_model = settings.openrouter_model
         result.match_error_message = str(exc)
         result.matched_at = datetime.now(UTC)
+        result.review_status = "pending"
     db.commit()
     db.refresh(result)
     return result

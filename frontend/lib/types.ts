@@ -9,6 +9,7 @@ export type ProductListItem = {
   l2: string | null;
   l3: string | null;
   l4: string | null;
+  product_url: string | null;
   search_query: string | null;
   updated_at: string;
 };
@@ -106,6 +107,7 @@ export type ScrapeResult = {
   match_model: string | null;
   match_error_message: string | null;
   matched_at: string | null;
+  review_status: "pending" | "confirmed" | "denied";
   created_at: string;
   updated_at: string;
   items: ScrapeResultItem[];
@@ -132,4 +134,39 @@ export type ScrapeJobCreateResponse = {
 export type OpenRouterSettings = {
   configured: boolean;
   model: string;
+};
+
+export type ReviewStatus = "pending" | "confirmed" | "denied";
+
+export type MatchReview = {
+  scrape_result_id: string;
+  product_id: string;
+  sku: string;
+  product_title: string | null;
+  product_url: string | null;
+  marketplace: Marketplace["key"];
+  competitor_item_id: string;
+  competitor_title: string;
+  competitor_url: string;
+  price: string | null;
+  match_confidence: number | null;
+  match_reason: string | null;
+  matched_at: string | null;
+  review_status: ReviewStatus;
+  updated_at: string;
+};
+
+export type ConfirmedMatch = {
+  id: string;
+  product_id: string;
+  scrape_result_id: string | null;
+  scrape_result_item_id: string | null;
+  sku: string;
+  product_title: string | null;
+  product_url: string;
+  marketplace: Marketplace["key"];
+  competitor_title: string;
+  competitor_url: string;
+  price: string | null;
+  confirmed_at: string;
 };

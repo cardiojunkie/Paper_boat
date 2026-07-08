@@ -11,16 +11,23 @@ from backend.tests.conftest import workbook_bytes, xls_workbook_bytes
 
 
 def test_import_insert_then_replace_removes_stale_attributes(db: Session) -> None:
-    first = workbook_bytes(["SKU", "Title", "Search Query", "Color"], [["001", "Old", "old query", "Blue"]])
+    first = workbook_bytes(
+        ["SKU", "Title", "Product URL", "Search Query", "Color"],
+        [["001", "Old", "https://store.test/old", "old query", "Blue"]],
+    )
     second = workbook_bytes(["SKU", "Title", "search query", "Size"], [["001", "New", "new query", "Large"]])
 
     first_job = import_products(db, first, "first.xlsx")
+    product = db.execute(select(Product).where(Product.sku == "001")).scalar_one()
+    assert product.product_url == "https://store.test/old"
+
     second_job = import_products(db, second, "second.xlsx")
     product = db.execute(select(Product).where(Product.sku == "001")).scalar_one()
 
     assert first_job.inserted_rows == 1
     assert second_job.updated_rows == 1
     assert product.title == "New"
+    assert product.product_url is None
     assert product.search_query == "new query"
     assert product.attributes == {"Size": "Large"}
 

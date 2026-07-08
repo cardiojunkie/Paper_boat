@@ -1,16 +1,18 @@
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import asc, desc, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .config import settings
 from .database import get_db
 from .filters import FILTER_COLUMNS, apply_product_filters
 from .matching import match_scrape_result
-from .models import ImportJob, ImportRowError, Product, ScrapeResult
+from .models import ConfirmedMatch, ImportJob, ImportRowError, Product, ScrapeResult, ScrapeResultItem
 from .scrape_service import create_scrape_jobs, get_scrape_job, latest_product_scrape_results, run_scrape_jobs
 from .scraper import MARKETPLACES
 from .schemas import (
@@ -20,13 +22,16 @@ from .schemas import (
     DeletePreviewResponse,
     DeleteResponse,
     FilterOptionsResponse,
+    ConfirmedMatchOut,
     ImportJobOut,
     ImportResult,
+    MatchReviewOut,
     OpenRouterSettingsOut,
     OpenRouterSettingsUpdate,
     ProductFilter,
     ProductListResponse,
     ProductOut,
+    ReviewStatus,
     RowErrorOut,
     MarketplaceOut,
     ScrapeMarkdownOut,
@@ -60,6 +65,51 @@ def scrape_markdown_path(result_id: uuid.UUID, db: Session) -> Path:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Markdown file not found")
     return path
+
+
+def http_url(value: str | None, field: str) -> str:
+    text = (value or "").strip()
+    parsed = urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail=f"{field} must be an http(s) URL")
+    return text
+
+
+def review_out(result: ScrapeResult, product: Product, item: ScrapeResultItem) -> MatchReviewOut:
+    return MatchReviewOut(
+        scrape_result_id=result.id,
+        product_id=product.id,
+        sku=product.sku,
+        product_title=product.title,
+        product_url=product.product_url,
+        marketplace=result.marketplace,
+        competitor_item_id=item.id,
+        competitor_title=item.title,
+        competitor_url=item.url,
+        price=item.price,
+        match_confidence=result.match_confidence,
+        match_reason=result.match_reason,
+        matched_at=result.matched_at,
+        review_status=result.review_status,
+        updated_at=result.updated_at,
+    )
+
+
+def matched_review_parts(result_id: uuid.UUID, db: Session) -> tuple[ScrapeResult, Product, ScrapeResultItem]:
+    result = db.execute(
+        select(ScrapeResult).where(ScrapeResult.id == result_id).options(selectinload(ScrapeResult.items))
+    ).scalar_one_or_none()
+    if not result:
+        raise HTTPException(status_code=404, detail="Scrape result not found")
+    if result.match_status != "matched" or not result.matched_item_id:
+        raise HTTPException(status_code=400, detail="Scrape result does not have a matched item")
+    product = db.get(Product, result.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    item = next((candidate for candidate in result.items if candidate.id == result.matched_item_id), None)
+    if not item:
+        raise HTTPException(status_code=400, detail="Matched item was not found")
+    return result, product, item
 
 
 def product_filters(
@@ -150,6 +200,66 @@ def list_products(
 @router.get("/marketplaces", response_model=list[MarketplaceOut])
 def marketplaces() -> list[MarketplaceOut]:
     return [MarketplaceOut(key=key, label=value["label"], enabled=True) for key, value in MARKETPLACES.items()]
+
+
+@router.get("/match-reviews", response_model=list[MatchReviewOut])
+def match_reviews(status: ReviewStatus = "pending", db: Session = Depends(get_db)) -> list[MatchReviewOut]:
+    rows = db.execute(
+        select(ScrapeResult, Product, ScrapeResultItem)
+        .join(Product, Product.id == ScrapeResult.product_id)
+        .join(ScrapeResultItem, ScrapeResultItem.id == ScrapeResult.matched_item_id)
+        .where(ScrapeResult.match_status == "matched", ScrapeResult.review_status == status)
+        .order_by(desc(ScrapeResult.updated_at))
+    ).all()
+    return [review_out(result, product, item) for result, product, item in rows]
+
+
+@router.post("/match-reviews/{result_id}/confirm", response_model=ConfirmedMatchOut)
+def confirm_match_review(result_id: uuid.UUID, db: Session = Depends(get_db)) -> ConfirmedMatch:
+    result, product, item = matched_review_parts(result_id, db)
+    product_url = http_url(product.product_url, "Product URL")
+    competitor_url = http_url(item.url, "Competitor URL")
+    now = datetime.now(UTC)
+    confirmed = db.execute(
+        select(ConfirmedMatch).where(ConfirmedMatch.product_id == product.id, ConfirmedMatch.marketplace == result.marketplace)
+    ).scalar_one_or_none()
+    values = {
+        "product_id": product.id,
+        "scrape_result_id": result.id,
+        "scrape_result_item_id": item.id,
+        "sku": product.sku,
+        "product_title": product.title,
+        "product_url": product_url,
+        "marketplace": result.marketplace,
+        "competitor_title": item.title,
+        "competitor_url": competitor_url,
+        "price": item.price,
+        "confirmed_at": now,
+    }
+    if confirmed is None:
+        confirmed = ConfirmedMatch(**values)
+        db.add(confirmed)
+    else:
+        for name, value in values.items():
+            setattr(confirmed, name, value)
+    result.review_status = "confirmed"
+    db.commit()
+    db.refresh(confirmed)
+    return confirmed
+
+
+@router.post("/match-reviews/{result_id}/deny", response_model=ScrapeResultOut)
+def deny_match_review(result_id: uuid.UUID, db: Session = Depends(get_db)) -> ScrapeResult:
+    result, _, _ = matched_review_parts(result_id, db)
+    result.review_status = "denied"
+    db.commit()
+    db.refresh(result)
+    return result
+
+
+@router.get("/confirmed-matches", response_model=list[ConfirmedMatchOut])
+def confirmed_matches(db: Session = Depends(get_db)) -> list[ConfirmedMatch]:
+    return list(db.execute(select(ConfirmedMatch).order_by(desc(ConfirmedMatch.confirmed_at))).scalars())
 
 
 @router.post("/scrape-jobs", response_model=ScrapeJobCreateResponse)

@@ -75,6 +75,7 @@ def create_scrape_jobs(db: Session, payload: ScrapeJobCreate) -> list[ScrapeJob]
                 result.match_model = None
                 result.match_error_message = None
                 result.matched_at = None
+                result.review_status = "pending"
                 db.add(result)
     db.commit()
     for job in jobs:
@@ -109,6 +110,7 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
             result.match_model = None
             result.match_error_message = None
             result.matched_at = None
+            result.review_status = "pending"
             db.execute(delete(ScrapeResultItem).where(ScrapeResultItem.scrape_result_id == result.id))
             db.commit()
             error = None

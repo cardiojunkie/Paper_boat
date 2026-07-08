@@ -25,6 +25,7 @@ CORE_NAMES = [
     "l2",
     "l3",
     "l4",
+    "product_url",
     "search_query",
 ]
 

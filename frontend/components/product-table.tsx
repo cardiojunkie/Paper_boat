@@ -22,6 +22,17 @@ const columns = [
   }),
   column.accessor("sku", { header: "SKU" }),
   column.accessor("title", { header: "Title", cell: (info) => info.getValue() ?? "" }),
+  column.accessor("product_url", {
+    header: "URL",
+    cell: (info) =>
+      info.getValue() ? (
+        <a className="url" href={info.getValue() ?? ""} target="_blank" rel="noreferrer">
+          {info.getValue()}
+        </a>
+      ) : (
+        ""
+      ),
+  }),
   column.accessor("product_type", { header: "Product Type", cell: (info) => info.getValue() ?? "" }),
   column.accessor("attribute_set", { header: "Attribute Set", cell: (info) => info.getValue() ?? "" }),
   column.accessor("l1", { header: "Cat L1", cell: (info) => info.getValue() ?? "" }),

@@ -26,6 +26,7 @@ class Product(Base):
     l2: Mapped[str | None] = mapped_column(String(255), index=True)
     l3: Mapped[str | None] = mapped_column(String(255), index=True)
     l4: Mapped[str | None] = mapped_column(String(255), index=True)
+    product_url: Mapped[str | None] = mapped_column(Text)
     search_query: Mapped[str | None] = mapped_column(Text)
     attributes: Mapped[dict] = mapped_column(JsonType, default=dict, nullable=False)
     source_row: Mapped[dict] = mapped_column(JsonType, default=dict, nullable=False)
@@ -124,6 +125,7 @@ class ScrapeResult(Base):
             "match_status in ('pending','running','matched','no_match','failed')",
             name="ck_scrape_results_match_status",
         ),
+        CheckConstraint("review_status in ('pending','confirmed','denied')", name="ck_scrape_results_review_status"),
         UniqueConstraint("product_id", "marketplace", name="uq_scrape_results_product_marketplace"),
     )
 
@@ -146,6 +148,7 @@ class ScrapeResult(Base):
     match_model: Mapped[str | None] = mapped_column(String(255))
     match_error_message: Mapped[str | None] = mapped_column(Text)
     matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -164,6 +167,24 @@ class ScrapeResultItem(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[str | None] = mapped_column(Text)
     result: Mapped[ScrapeResult] = relationship(back_populates="items")
+
+
+class ConfirmedMatch(Base):
+    __tablename__ = "confirmed_matches"
+    __table_args__ = (UniqueConstraint("product_id", "marketplace", name="uq_confirmed_matches_product_marketplace"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    scrape_result_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scrape_results.id", ondelete="SET NULL"), index=True)
+    scrape_result_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scrape_result_items.id", ondelete="SET NULL"))
+    sku: Mapped[str] = mapped_column(String(255), nullable=False)
+    product_title: Mapped[str | None] = mapped_column(Text)
+    product_url: Mapped[str] = mapped_column(Text, nullable=False)
+    marketplace: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    competitor_title: Mapped[str] = mapped_column(Text, nullable=False)
+    competitor_url: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[str | None] = mapped_column(Text)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 Index("ix_products_created_at", Product.created_at)

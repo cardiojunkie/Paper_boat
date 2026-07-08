@@ -4,6 +4,19 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 PY="$ROOT/backend/.venv/bin/python"
+DAEMON="${PICKPILOT_DAEMON:-auto}"
+
+daemon_mode() {
+  case "$DAEMON" in
+    1|true|yes) return 0 ;;
+    0|false|no) return 1 ;;
+    auto) [[ ! -t 0 || ! -t 1 ]] ;;
+    *)
+      echo "Invalid PICKPILOT_DAEMON value: $DAEMON"
+      return 1
+      ;;
+  esac
+}
 
 kill_pid_file() {
   local pid_file="$1"
@@ -58,6 +71,19 @@ maybe_make_frontend_public() {
   gh codespace ports visibility 3000:public -c "$CODESPACE_NAME" >/dev/null 2>&1 || true
 }
 
+make_frontend_private() {
+  command -v gh >/dev/null 2>&1 || return 0
+  [[ -n "${CODESPACE_NAME:-}" ]] || return 0
+  gh codespace ports visibility 3000:private -c "$CODESPACE_NAME" >/dev/null 2>&1 || true
+}
+
+stop_ports() {
+  kill_pid_file logs/backend.pid
+  kill_pid_file logs/frontend.pid
+  fuser -k 8000/tcp 3000/tcp >/dev/null 2>&1 || true
+  make_frontend_private
+}
+
 warn_if_private_frontend() {
   local url="$1"
   [[ "$url" == http://127.0.0.1:* ]] && return 0
@@ -70,11 +96,16 @@ warn_if_private_frontend() {
   fi
 }
 
+if [[ "${1:-}" == "stop" ]]; then
+  mkdir -p logs
+  echo "Stopping app..."
+  stop_ports
+  exit 0
+fi
+
 echo "Clearing app caches..."
 mkdir -p logs
-kill_pid_file logs/backend.pid
-kill_pid_file logs/frontend.pid
-fuser -k 8000/tcp 3000/tcp >/dev/null 2>&1 || true
+stop_ports
 wait_for_ports_free || true
 rm_rf_retry frontend/.next .pytest_cache logs/backend.log logs/frontend.log
 find backend frontend -type d \( -name __pycache__ -o -name .pytest_cache \) -prune -exec rm -rf {} +
@@ -110,7 +141,7 @@ cleanup() {
   trap - EXIT INT TERM
   echo
   echo "Stopping app..."
-  kill -- "-$BACKEND_PID" "-$FRONTEND_PID" >/dev/null 2>&1 || true
+  stop_ports
 }
 trap cleanup EXIT INT TERM
 
@@ -159,5 +190,11 @@ echo "  tail -f logs/backend.log"
 echo "  tail -f logs/frontend.log"
 echo
 echo "Press Ctrl+C to stop both servers."
+
+if daemon_mode; then
+  trap - EXIT INT TERM
+  echo "Daemon mode: backend and frontend will keep running after this script exits."
+  exit 0
+fi
 
 wait -n "$BACKEND_PID" "$FRONTEND_PID"

@@ -27,6 +27,13 @@ def test_parse_search_query_aliases() -> None:
     assert result.valid_rows[0].core["search_query"] == "washing machine"
 
 
+def test_parse_product_url_aliases() -> None:
+    content = workbook_bytes(["SKU", "Website URL"], [["00123", "https://store.test/products/00123"]])
+    result = parse_xlsx(content, "products.xlsx", 100)
+
+    assert result.valid_rows[0].core["product_url"] == "https://store.test/products/00123"
+
+
 def test_parse_name_aliases_title() -> None:
     content = workbook_bytes(["SKU", "name"], [["00123", "Washing Machine"]])
     result = parse_xlsx(content, "products.xlsx", 100)

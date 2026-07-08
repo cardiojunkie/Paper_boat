@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 SortField = Literal["sku", "title", "created_at", "updated_at"]
 SortDirection = Literal["asc", "desc"]
 MatchStatus = Literal["pending", "running", "matched", "no_match", "failed"]
+ReviewStatus = Literal["pending", "confirmed", "denied"]
 
 
 class ProductFilter(BaseModel):
@@ -42,6 +43,7 @@ class ProductOut(BaseModel):
     l2: str | None
     l3: str | None
     l4: str | None
+    product_url: str | None
     search_query: str | None
     attributes: dict
     source_row: dict
@@ -63,6 +65,7 @@ class ProductListItem(BaseModel):
     l2: str | None
     l3: str | None
     l4: str | None
+    product_url: str | None
     search_query: str | None
     updated_at: datetime
 
@@ -216,6 +219,7 @@ class ScrapeResultOut(BaseModel):
     match_model: str | None
     match_error_message: str | None
     matched_at: datetime | None
+    review_status: ReviewStatus
     created_at: datetime
     updated_at: datetime
     items: list[ScrapeResultItemOut] = Field(default_factory=list)
@@ -235,3 +239,38 @@ class ScrapeJobOut(BaseModel):
     completed_at: datetime | None
     error_summary: str | None
     results: list[ScrapeResultOut] = Field(default_factory=list)
+
+
+class MatchReviewOut(BaseModel):
+    scrape_result_id: uuid.UUID
+    product_id: uuid.UUID
+    sku: str
+    product_title: str | None
+    product_url: str | None
+    marketplace: MarketplaceKey
+    competitor_item_id: uuid.UUID
+    competitor_title: str
+    competitor_url: str
+    price: str | None
+    match_confidence: int | None
+    match_reason: str | None
+    matched_at: datetime | None
+    review_status: ReviewStatus
+    updated_at: datetime
+
+
+class ConfirmedMatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    product_id: uuid.UUID
+    scrape_result_id: uuid.UUID | None
+    scrape_result_item_id: uuid.UUID | None
+    sku: str
+    product_title: str | None
+    product_url: str
+    marketplace: MarketplaceKey
+    competitor_title: str
+    competitor_url: str
+    price: str | None
+    confirmed_at: datetime

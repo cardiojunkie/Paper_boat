@@ -172,6 +172,12 @@ th {
   overflow-wrap: anywhere;
 }
 
+.row-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
 .grid {
   display: grid;
   gap: 16px;
@@ -260,6 +266,36 @@ th {
   width: 100%;
 }
 
+.review-frame-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.review-pane {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-height: 560px;
+  padding: 10px;
+}
+
+.review-pane iframe,
+.review-empty {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  height: 500px;
+  width: 100%;
+}
+
+.review-empty {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
 pre {
   background: #111827;
   border-radius: 8px;
@@ -282,6 +318,10 @@ pre {
   }
 
   .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .review-frame-grid {
     grid-template-columns: 1fr;
   }
 }

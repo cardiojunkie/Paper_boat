@@ -2,6 +2,7 @@
 
 import { ExternalLink, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -70,6 +71,7 @@ export default function ProductDetailPage() {
         ["L2", product.l2],
         ["L3", product.l3],
         ["L4", product.l4],
+        ["Product URL", product.product_url],
         ["Search query", product.search_query],
         ["Source file", product.source_filename],
         ["Created", new Date(product.created_at).toLocaleString()],
@@ -144,16 +146,24 @@ export default function ProductDetailPage() {
                   <div className="field-block">
                     <div className="row between">
                       <strong>LLM match</strong>
-                      <button
-                        className="button"
-                        disabled={!selectedResult.items.length || selectedResult.match_status === "running" || runMatch.isPending}
-                        onClick={() => runMatch.mutate(selectedResult.id)}
-                      >
-                        <Sparkles size={16} /> {selectedResult.match_status === "matched" ? "Rerun match" : "Run match"}
-                      </button>
+                      <div className="row">
+                        {selectedResult.match_status === "matched" && selectedResult.matched_item_id && (
+                          <Link className="button" href={`/matches/review?result=${selectedResult.id}`}>
+                            <ExternalLink size={16} /> Review
+                          </Link>
+                        )}
+                        <button
+                          className="button"
+                          disabled={!selectedResult.items.length || selectedResult.match_status === "running" || runMatch.isPending}
+                          onClick={() => runMatch.mutate(selectedResult.id)}
+                        >
+                          <Sparkles size={16} /> {selectedResult.match_status === "matched" ? "Rerun match" : "Run match"}
+                        </button>
+                      </div>
                     </div>
                     <div className="row">
                       <span className="status-pill">{selectedResult.match_status.replace("_", " ")}</span>
+                      <span className="status-pill">{selectedResult.review_status}</span>
                       {selectedResult.match_confidence !== null && <span className="status-pill">{selectedResult.match_confidence}%</span>}
                       {selectedResult.match_model && <span className="status-pill">{selectedResult.match_model}</span>}
                       {selectedResult.matched_at && <span className="muted">{new Date(selectedResult.matched_at).toLocaleString()}</span>}

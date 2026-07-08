@@ -1,12 +1,15 @@
 import { z } from "zod";
 
 import type {
+  ConfirmedMatch,
   ImportResult,
+  MatchReview,
   Marketplace,
   OpenRouterSettings,
   ProductDetail,
   ProductFilters,
   ProductListResponse,
+  ReviewStatus,
   ScrapeJob,
   ScrapeJobCreateResponse,
   ScrapeResult,
@@ -113,6 +116,23 @@ export function updateScrapeMarkdown(resultId: string, content: string) {
 
 export function runScrapeMatch(resultId: string) {
   return request<ScrapeResult>(`/api/scrape-results/${resultId}/match`, { method: "POST" });
+}
+
+export function listMatchReviews(status: ReviewStatus = "pending") {
+  const params = new URLSearchParams({ status });
+  return request<MatchReview[]>(`/api/match-reviews?${params}`);
+}
+
+export function confirmMatchReview(resultId: string) {
+  return request<ConfirmedMatch>(`/api/match-reviews/${resultId}/confirm`, { method: "POST" });
+}
+
+export function denyMatchReview(resultId: string) {
+  return request<ScrapeResult>(`/api/match-reviews/${resultId}/deny`, { method: "POST" });
+}
+
+export function listConfirmedMatches() {
+  return request<ConfirmedMatch[]>("/api/confirmed-matches");
 }
 
 export function getFilterOptions(field: string, filters: ProductFilters) {
