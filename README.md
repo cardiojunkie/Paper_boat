@@ -7,7 +7,7 @@ Competitor scraping, product matching, LLM calls, search URL generation, backgro
 ## Stack
 
 - Backend: Python, FastAPI, Pydantic, SQLAlchemy 2, Alembic, PostgreSQL.
-- Frontend: Next.js, React, TypeScript, TanStack Query, TanStack Table, Zod, Tailwind-style CSS.
+- Frontend: Next.js, React, TypeScript, TanStack Query, TanStack Table, Zod, plain CSS.
 - Local database: Docker Compose PostgreSQL.
 
 ## Local Setup
@@ -55,12 +55,15 @@ Important backend variables:
 - `PICKPILOT_SCRAPE_OUTPUT_DIR`
 - `PICKPILOT_SCRAPE_TIMEOUT_SECONDS`
 - `PICKPILOT_SCRAPE_MAX_RESULTS`
+- `PICKPILOT_OPENROUTER_API_KEY`
+- `PICKPILOT_OPENROUTER_MODEL`
+- `PICKPILOT_MATCH_AUTO_ENABLED`
 
 Frontend uses same-origin `/api` calls. Next proxies those to `NEXT_INTERNAL_API_BASE_URL`, falling back to `NEXT_PUBLIC_API_BASE_URL`, then `http://127.0.0.1:8000`.
 
 ## Excel Import Rules
 
-- Accepts `.xlsx` only.
+- Accepts `.xls` and `.xlsx`.
 - Each non-empty row represents one SKU.
 - `SKU` is mandatory.
 - SKU values are trimmed strings. Text SKUs like `00123` keep leading zeros.
@@ -93,7 +96,7 @@ SKU is the Phase 1 business key.
 
 ```bash
 backend/.venv/bin/pytest backend/tests
-cd frontend && npm run build
+rm -rf frontend/.next && npm run build --prefix frontend
 ```
 
 The backend tests use SQLite for fast local checks and PostgreSQL for runtime via Docker/Alembic. PostgreSQL remains the production database.
@@ -118,4 +121,10 @@ Marketplace URL templates:
 - Sharaf DG: `https://uae.sharafdg.com/?q={query_percent}&post_type=product`
 - Carrefour: `https://www.carrefouruae.com/mafuae/en/search?keyword={query_percent}`
 
-Phase 2 uses Scrapling's static fetcher. Sites that block scraping are recorded as per-marketplace failures; proxy/CAPTCHA handling is intentionally deferred.  
+Phase 2 uses Scrapling's static fetcher. Sites that block scraping are recorded as per-marketplace failures; proxy/CAPTCHA handling is intentionally deferred.
+
+## LLM Product Matching
+
+Completed scrape results can be matched against the indexed product with OpenRouter. The matcher sends the stored product fields and structured top scrape result rows to the configured model, stores the suggested best candidate, confidence, reason, and per-candidate evidence, and leaves the result as a human-review suggestion.
+
+Set `PICKPILOT_OPENROUTER_API_KEY` in `.env`. The default model is `tencent/hy3:free`; override it with `PICKPILOT_OPENROUTER_MODEL` when that free endpoint changes. Matching runs automatically after successful scrapes when `PICKPILOT_MATCH_AUTO_ENABLED=true`, and can be rerun from the product detail page.

@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, RotateCcw, Save } from "lucide-react";
+import { ExternalLink, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -9,9 +9,11 @@ import {
   getProduct,
   getProductScrapeResults,
   getScrapeMarkdown,
+  runScrapeMatch,
   scrapeMarkdownUrl,
   updateScrapeMarkdown,
 } from "../../../lib/api";
+import type { ScrapeResult } from "../../../lib/types";
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
@@ -38,6 +40,14 @@ export default function ProductDetailPage() {
     onSuccess: (data, variables) => {
       queryClient.setQueryData(["scrape-markdown", variables.id], data.content);
       setMessage("Markdown saved.");
+    },
+  });
+  const runMatch = useMutation({
+    mutationFn: runScrapeMatch,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["product-scrape-results", params.id], (current?: ScrapeResult[]) =>
+        current?.map((result) => (result.id === updated.id ? updated : result)),
+      );
     },
   });
   const attributes = useMemo(() => {
@@ -131,6 +141,27 @@ export default function ProductDetailPage() {
                     </a>
                   </div>
                   {selectedResult.error_message && <p className="error">{selectedResult.error_message}</p>}
+                  <div className="field-block">
+                    <div className="row between">
+                      <strong>LLM match</strong>
+                      <button
+                        className="button"
+                        disabled={!selectedResult.items.length || selectedResult.match_status === "running" || runMatch.isPending}
+                        onClick={() => runMatch.mutate(selectedResult.id)}
+                      >
+                        <Sparkles size={16} /> {selectedResult.match_status === "matched" ? "Rerun match" : "Run match"}
+                      </button>
+                    </div>
+                    <div className="row">
+                      <span className="status-pill">{selectedResult.match_status.replace("_", " ")}</span>
+                      {selectedResult.match_confidence !== null && <span className="status-pill">{selectedResult.match_confidence}%</span>}
+                      {selectedResult.match_model && <span className="status-pill">{selectedResult.match_model}</span>}
+                      {selectedResult.matched_at && <span className="muted">{new Date(selectedResult.matched_at).toLocaleString()}</span>}
+                    </div>
+                    {selectedResult.match_reason && <p className="muted">{selectedResult.match_reason}</p>}
+                    {selectedResult.match_error_message && <p className="error">{selectedResult.match_error_message}</p>}
+                    {runMatch.error && <p className="error">{runMatch.error.message}</p>}
+                  </div>
                   {!!selectedResult.items.length && (
                     <div className="table-wrap">
                       <table className="compact-table">
@@ -144,7 +175,7 @@ export default function ProductDetailPage() {
                         </thead>
                         <tbody>
                           {selectedResult.items.map((item) => (
-                            <tr key={`${item.position}-${item.url}`}>
+                            <tr key={item.id} className={item.id === selectedResult.matched_item_id ? "matched-row" : undefined}>
                               <td>{item.position}</td>
                               <td>{item.title}</td>
                               <td>{item.price ?? ""}</td>

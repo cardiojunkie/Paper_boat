@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 SortField = Literal["sku", "title", "created_at", "updated_at"]
 SortDirection = Literal["asc", "desc"]
+MatchStatus = Literal["pending", "running", "matched", "no_match", "failed"]
 
 
 class ProductFilter(BaseModel):
@@ -144,6 +145,15 @@ class DeleteResponse(BaseModel):
     audit_id: uuid.UUID | None = None
 
 
+class OpenRouterSettingsOut(BaseModel):
+    configured: bool
+    model: str
+
+
+class OpenRouterSettingsUpdate(BaseModel):
+    api_key: str = ""
+
+
 MarketplaceKey = Literal["amazon", "noon", "sharafdg", "carrefour"]
 
 
@@ -178,6 +188,7 @@ class ScrapeMarkdownOut(BaseModel):
 class ScrapeResultItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: uuid.UUID
     position: int
     title: str
     url: str
@@ -197,6 +208,14 @@ class ScrapeResultOut(BaseModel):
     result_count: int
     markdown_path: str | None
     error_message: str | None
+    match_status: MatchStatus
+    matched_item_id: uuid.UUID | None
+    match_confidence: int | None
+    match_reason: str | None
+    match_response: dict = Field(default_factory=dict)
+    match_model: str | None
+    match_error_message: str | None
+    matched_at: datetime | None
     created_at: datetime
     updated_at: datetime
     items: list[ScrapeResultItemOut] = Field(default_factory=list)

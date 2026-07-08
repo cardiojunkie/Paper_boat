@@ -5,7 +5,9 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
+from .config import settings
 from .database import SessionLocal
+from .matching import match_scrape_result
 from .models import Product, ScrapeJob, ScrapeResult, ScrapeResultItem
 from .scraper import MARKETPLACES, build_search_url, scrape_marketplace, write_markdown
 from .schemas import ScrapeJobCreate
@@ -65,6 +67,14 @@ def create_scrape_jobs(db: Session, payload: ScrapeJobCreate) -> list[ScrapeJob]
                 result.status = "queued"
                 result.result_count = 0
                 result.error_message = None
+                result.match_status = "pending"
+                result.matched_item_id = None
+                result.match_confidence = None
+                result.match_reason = None
+                result.match_response = {}
+                result.match_model = None
+                result.match_error_message = None
+                result.matched_at = None
                 db.add(result)
     db.commit()
     for job in jobs:
@@ -91,6 +101,14 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
         results = list(db.execute(select(ScrapeResult).where(ScrapeResult.scrape_job_id == job_id)).scalars())
         for result in results:
             result.status = "running"
+            result.match_status = "pending"
+            result.matched_item_id = None
+            result.match_confidence = None
+            result.match_reason = None
+            result.match_response = {}
+            result.match_model = None
+            result.match_error_message = None
+            result.matched_at = None
             db.execute(delete(ScrapeResultItem).where(ScrapeResultItem.scrape_result_id == result.id))
             db.commit()
             error = None
@@ -111,6 +129,8 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
                 job.failed_targets += 1
             result.markdown_path = write_markdown(result.sku, result.marketplace, result.search_query, result.search_url, items, error)
             db.commit()
+            if settings.match_auto_enabled and settings.openrouter_api_key and result.status == "completed":
+                match_scrape_result(db, result.id)
 
         job.completed_at = datetime.now(UTC)
         job.status = "completed_with_errors" if job.failed_targets else "completed"

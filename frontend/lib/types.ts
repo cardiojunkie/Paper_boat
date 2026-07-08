@@ -80,6 +80,7 @@ export type Marketplace = {
 };
 
 export type ScrapeResultItem = {
+  id: string;
   position: number;
   title: string;
   url: string;
@@ -97,6 +98,14 @@ export type ScrapeResult = {
   result_count: number;
   markdown_path: string | null;
   error_message: string | null;
+  match_status: "pending" | "running" | "matched" | "no_match" | "failed";
+  matched_item_id: string | null;
+  match_confidence: number | null;
+  match_reason: string | null;
+  match_response: Record<string, unknown>;
+  match_model: string | null;
+  match_error_message: string | null;
+  matched_at: string | null;
   created_at: string;
   updated_at: string;
   items: ScrapeResultItem[];
@@ -118,4 +127,9 @@ export type ScrapeJob = {
 
 export type ScrapeJobCreateResponse = {
   jobs: { job_id: string; status: string }[];
+};
+
+export type OpenRouterSettings = {
+  configured: boolean;
+  model: string;
 };

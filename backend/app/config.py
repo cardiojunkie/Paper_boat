@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     scrape_max_results: int = 10
     scrape_delay_seconds: float = 0
     scrape_max_concurrency: int = 2
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "tencent/hy3:free"
+    openrouter_timeout_seconds: int = 60
+    match_auto_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="PICKPILOT_", extra="ignore")
 

@@ -120,6 +120,10 @@ class ScrapeResult(Base):
     __tablename__ = "scrape_results"
     __table_args__ = (
         CheckConstraint("status in ('queued','running','completed','failed')", name="ck_scrape_results_status"),
+        CheckConstraint(
+            "match_status in ('pending','running','matched','no_match','failed')",
+            name="ck_scrape_results_match_status",
+        ),
         UniqueConstraint("product_id", "marketplace", name="uq_scrape_results_product_marketplace"),
     )
 
@@ -134,6 +138,14 @@ class ScrapeResult(Base):
     result_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     markdown_path: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
+    match_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    matched_item_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    match_confidence: Mapped[int | None] = mapped_column(Integer)
+    match_reason: Mapped[str | None] = mapped_column(Text)
+    match_response: Mapped[dict] = mapped_column(JsonType, default=dict, nullable=False)
+    match_model: Mapped[str | None] = mapped_column(String(255))
+    match_error_message: Mapped[str | None] = mapped_column(Text)
+    matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False

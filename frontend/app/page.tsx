@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ProductsPage from "./products/page";
 
 export default function Home() {
-  redirect("/products");
+  return <ProductsPage />;
 }

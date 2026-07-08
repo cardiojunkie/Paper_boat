@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy import Select, and_, func, select
 from sqlalchemy.orm import Session
 
@@ -27,7 +29,7 @@ def filter_conditions(db: Session, filters: ProductFilter) -> list:
             conditions.append(column.in_(values))
     if filters.sku_filter_token:
         token = db.get(SkuFilterToken, filters.sku_filter_token)
-        if token:
+        if token and token.expires_at > datetime.now(UTC):
             conditions.append(Product.sku.in_(token.skus))
         else:
             conditions.append(Product.sku.in_([]))

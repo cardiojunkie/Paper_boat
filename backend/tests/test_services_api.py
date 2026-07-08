@@ -1,8 +1,10 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Product, ScrapeJob, ScrapeResult, ScrapeResultItem
+from backend.app.models import Product, ScrapeJob, ScrapeResult, ScrapeResultItem, SkuFilterToken
 from backend.app.schemas import ProductFilter
 from backend.app.services import import_products, preview_delete
 from backend.tests.conftest import workbook_bytes, xls_workbook_bytes
@@ -79,6 +81,18 @@ def test_sku_filter_file_accepts_xls(client: TestClient, db: Session) -> None:
     assert response.status_code == 200
     assert response.json()["read_count"] == 1
     assert response.json()["existing_count"] == 1
+
+
+def test_expired_sku_filter_matches_nothing(client: TestClient, db: Session) -> None:
+    product = Product(sku="001", title="Alpha", attributes={}, source_row={})
+    token = SkuFilterToken(skus=["001"], expires_at=datetime.now(UTC) - timedelta(seconds=1))
+    db.add_all([product, token])
+    db.commit()
+
+    response = client.get("/api/products", params={"sku_filter_token": str(token.token)})
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
 
 
 def test_delete_by_empty_filter_rejected(db: Session) -> None:
@@ -162,7 +176,10 @@ def test_scrape_job_api_with_mocked_scraper(client: TestClient, db: Session, mon
     assert "AED 10.00" in markdown.text
 
 
-def test_scrape_markdown_can_be_edited(client: TestClient, db: Session, tmp_path) -> None:
+def test_scrape_markdown_can_be_edited(client: TestClient, db: Session, tmp_path, monkeypatch) -> None:
+    from backend.app.config import settings
+
+    monkeypatch.setattr(settings, "scrape_output_dir", str(tmp_path))
     path = tmp_path / "result.md"
     path.write_text("old markdown", encoding="utf-8")
     product = Product(sku="SKU1", title="Washer", attributes={}, source_row={})
@@ -200,6 +217,36 @@ def test_scrape_markdown_can_be_edited(client: TestClient, db: Session, tmp_path
     assert path.read_text(encoding="utf-8") == "edited markdown"
     assert client.get(f"/api/scrape-results/{result.id}/markdown").text == "edited markdown"
     assert client.put(f"/api/scrape-results/{missing_markdown.id}/markdown", json={"content": "new"}).status_code == 404
+
+
+def test_scrape_markdown_outside_output_dir_is_blocked(client: TestClient, db: Session, tmp_path, monkeypatch) -> None:
+    from backend.app.config import settings
+
+    output_dir = tmp_path / "scrape_outputs"
+    outside_path = tmp_path / "outside.md"
+    output_dir.mkdir()
+    outside_path.write_text("nope", encoding="utf-8")
+    monkeypatch.setattr(settings, "scrape_output_dir", str(output_dir))
+    product = Product(sku="SKU1", title="Washer", attributes={}, source_row={})
+    job = ScrapeJob(requested_product_ids=[], marketplaces=["amazon"], total_targets=1)
+    db.add_all([product, job])
+    db.flush()
+    result = ScrapeResult(
+        scrape_job_id=job.id,
+        product_id=product.id,
+        sku=product.sku,
+        marketplace="amazon",
+        search_query="washer",
+        search_url="https://example.test/search",
+        status="completed",
+        markdown_path=str(outside_path),
+    )
+    db.add(result)
+    db.commit()
+
+    assert client.get(f"/api/scrape-results/{result.id}/markdown").status_code == 404
+    assert client.put(f"/api/scrape-results/{result.id}/markdown", json={"content": "edited"}).status_code == 404
+    assert outside_path.read_text(encoding="utf-8") == "nope"
 
 
 def test_scrape_job_creation_is_one_job_per_sku(client: TestClient, db: Session, monkeypatch) -> None:

@@ -6,8 +6,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import get_db
 from .filters import FILTER_COLUMNS, apply_product_filters
+from .matching import match_scrape_result
 from .models import ImportJob, ImportRowError, Product, ScrapeResult
 from .scrape_service import create_scrape_jobs, get_scrape_job, latest_product_scrape_results, run_scrape_jobs
 from .scraper import MARKETPLACES
@@ -20,6 +22,8 @@ from .schemas import (
     FilterOptionsResponse,
     ImportJobOut,
     ImportResult,
+    OpenRouterSettingsOut,
+    OpenRouterSettingsUpdate,
     ProductFilter,
     ProductListResponse,
     ProductOut,
@@ -39,13 +43,20 @@ from .services import create_sku_filter, delete_products, import_products, previ
 router = APIRouter(prefix="/api")
 
 
+def openrouter_settings() -> OpenRouterSettingsOut:
+    return OpenRouterSettingsOut(configured=bool(settings.openrouter_api_key), model=settings.openrouter_model)
+
+
 def scrape_markdown_path(result_id: uuid.UUID, db: Session) -> Path:
     result = db.execute(select(ScrapeResult).where(ScrapeResult.id == result_id)).scalar_one_or_none()
     if not result:
         raise HTTPException(status_code=404, detail="Scrape result not found")
     if not result.markdown_path:
         raise HTTPException(status_code=404, detail="Markdown has not been generated")
-    path = Path(result.markdown_path)
+    output_dir = Path(settings.scrape_output_dir).resolve()
+    path = Path(result.markdown_path).resolve()
+    if not path.is_relative_to(output_dir):
+        raise HTTPException(status_code=404, detail="Markdown file not found")
     if not path.exists():
         raise HTTPException(status_code=404, detail="Markdown file not found")
     return path
@@ -75,6 +86,17 @@ def product_filters(
         l4=l4,
         sku_filter_token=sku_filter_token,
     )
+
+
+@router.get("/settings/openrouter", response_model=OpenRouterSettingsOut)
+def get_openrouter_settings() -> OpenRouterSettingsOut:
+    return openrouter_settings()
+
+
+@router.put("/settings/openrouter", response_model=OpenRouterSettingsOut)
+def update_openrouter_settings(payload: OpenRouterSettingsUpdate) -> OpenRouterSettingsOut:
+    settings.openrouter_api_key = payload.api_key.strip() or None
+    return openrouter_settings()
 
 
 @router.post("/imports/products", response_model=ImportResult)
@@ -183,6 +205,11 @@ def update_scrape_result_markdown(
     path = scrape_markdown_path(result_id, db)
     path.write_text(payload.content, encoding="utf-8")
     return ScrapeMarkdownOut(content=payload.content)
+
+
+@router.post("/scrape-results/{result_id}/match", response_model=ScrapeResultOut)
+def match_scrape_result_endpoint(result_id: uuid.UUID, db: Session = Depends(get_db)) -> ScrapeResult:
+    return match_scrape_result(db, result_id)
 
 
 @router.post("/product-filters/sku-file", response_model=SkuFileFilterResponse)

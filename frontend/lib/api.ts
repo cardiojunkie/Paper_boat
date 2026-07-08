@@ -3,6 +3,7 @@ import { z } from "zod";
 import type {
   ImportResult,
   Marketplace,
+  OpenRouterSettings,
   ProductDetail,
   ProductFilters,
   ProductListResponse,
@@ -61,6 +62,18 @@ export function getMarketplaces() {
   return request<Marketplace[]>("/api/marketplaces");
 }
 
+export function getOpenRouterSettings() {
+  return request<OpenRouterSettings>("/api/settings/openrouter");
+}
+
+export function updateOpenRouterApiKey(apiKey: string) {
+  return request<OpenRouterSettings>("/api/settings/openrouter", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+}
+
 export function createScrapeJob(productIds: string[], marketplaces: Marketplace["key"][]) {
   return request<ScrapeJobCreateResponse>("/api/scrape-jobs", {
     method: "POST",
@@ -96,6 +109,10 @@ export function updateScrapeMarkdown(resultId: string, content: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
   });
+}
+
+export function runScrapeMatch(resultId: string) {
+  return request<ScrapeResult>(`/api/scrape-results/${resultId}/match`, { method: "POST" });
 }
 
 export function getFilterOptions(field: string, filters: ProductFilters) {

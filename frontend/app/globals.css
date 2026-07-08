@@ -156,6 +156,10 @@ th {
   white-space: nowrap;
 }
 
+.matched-row td {
+  background: #ecfdf5;
+}
+
 .muted {
   color: var(--muted);
 }

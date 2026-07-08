@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { DeleteControls } from "../../components/delete-dialog";
 import { ImportUpload } from "../../components/import-upload";
+import { OpenRouterSettings } from "../../components/openrouter-settings";
 import { emptyFilters, ProductFiltersView } from "../../components/product-filters";
 import { ProductTable } from "../../components/product-table";
 import { SkuFilterUpload } from "../../components/sku-filter-upload";
@@ -69,6 +70,7 @@ export default function ProductsPage() {
 
         <div className="grid">
           <DeleteControls selectedIds={selectedIds} filters={filters} onDeleted={clearSelection} />
+          <OpenRouterSettings />
           <ScrapeControls selectedIds={selectedIds} onStaleSelection={clearSelection} />
         </div>
 

@@ -1,12 +1,8 @@
 alembic
-browserforge
-curl_cffi
 fastapi
 httpx
-msgspec
 openpyxl
 xlrd
-playwright
 psycopg[binary]
 pydantic-settings
 pytest
