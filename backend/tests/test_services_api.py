@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from backend.app.models import Product, ScrapeJob, ScrapeResult, ScrapeResultItem, SkuFilterToken
 from backend.app.schemas import ProductFilter
@@ -181,6 +181,43 @@ def test_scrape_job_api_with_mocked_scraper(client: TestClient, db: Session, mon
     assert markdown.status_code == 200
     assert "SKU/1" in markdown.text
     assert "AED 10.00" in markdown.text
+
+
+def test_scrape_job_empty_result_fails(db: Session, monkeypatch, tmp_path) -> None:
+    from backend.app import scrape_service
+    from backend.app.config import settings
+    from backend.app.schemas import ScrapeJobCreate
+
+    settings.scrape_output_dir = str(tmp_path)
+    product = Product(sku="SKU1", title="Washer", search_query="washing machine", attributes={}, source_row={})
+    db.add(product)
+    db.commit()
+
+    def fake_scrape(marketplace: str, search_url: str):
+        return []
+
+    monkeypatch.setattr(scrape_service, "scrape_marketplace", fake_scrape)
+    job = scrape_service.create_scrape_jobs(db, ScrapeJobCreate(product_ids=[product.id], marketplaces=["amazon"]))[0]
+    job_id = job.id
+    TestingSession = sessionmaker(bind=db.get_bind(), autoflush=False, expire_on_commit=False)
+
+    scrape_service.run_scrape_job(job_id, session_factory=TestingSession)
+    db.expire_all()
+    job = db.get(ScrapeJob, job_id)
+    assert job
+    assert job.status == "completed_with_errors"
+    assert job.failed_targets == 1
+
+    result = db.execute(select(ScrapeResult).where(ScrapeResult.scrape_job_id == job_id)).scalar_one()
+    assert result.status == "failed"
+    assert result.result_count == 0
+    assert result.error_message
+    assert "returned no product results" in result.error_message
+
+    assert result.markdown_path
+    markdown = tmp_path.joinpath("SKU1_amazon.md").read_text()
+    assert "## Error" in markdown
+    assert "returned no product results" in markdown
 
 
 def test_scrape_markdown_can_be_edited(client: TestClient, db: Session, tmp_path, monkeypatch) -> None:

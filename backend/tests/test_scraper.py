@@ -209,5 +209,25 @@ def test_noon_akamai_privacy_page_fails(monkeypatch) -> None:
 
     monkeypatch.setattr(scraper.Fetcher, "get", classmethod(fake_get))
 
-    with pytest.raises(RuntimeError, match="Noon blocked request"):
+    with pytest.raises(RuntimeError, match="Noon UAE blocked request"):
         scrape_marketplace("noon", "https://www.noon.com/uae-en/search/?q=washer")
+
+
+def test_challenge_page_fails(monkeypatch) -> None:
+    def fake_get(cls, url, **kwargs):
+        return Adaptor("<html><body>Access denied</body></html>", url=url)
+
+    monkeypatch.setattr(scraper.Fetcher, "get", classmethod(fake_get))
+
+    with pytest.raises(RuntimeError, match="Amazon AE blocked request"):
+        scrape_marketplace("amazon", "https://www.amazon.ae/s?k=washer")
+
+
+def test_empty_product_page_fails(monkeypatch) -> None:
+    def fake_get(cls, url, **kwargs):
+        return Adaptor("<html><body>No matching products here</body></html>", url=url)
+
+    monkeypatch.setattr(scraper.Fetcher, "get", classmethod(fake_get))
+
+    with pytest.raises(RuntimeError, match="Amazon AE returned no product results"):
+        scrape_marketplace("amazon", "https://www.amazon.ae/s?k=washer")

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AppShell } from "../components/app-shell";
 import { Providers } from "../components/providers";
 import "./globals.css";
 
@@ -14,19 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <Providers>
-          <div className="shell">
-            <header className="topbar">
-              <Link href="/products" className="brand">
-                PickPilot
-              </Link>
-              <nav className="nav">
-                <Link href="/products">Products</Link>
-                <Link href="/matches/review">Review</Link>
-                <Link href="/matches/confirmed">Confirmed</Link>
-              </nav>
-            </header>
-            {children}
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

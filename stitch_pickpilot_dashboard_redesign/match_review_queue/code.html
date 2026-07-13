@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PickPilot - Match Review</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#f7f9fb",
+                        "background": "#f7f9fb",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#bcc9c6",
+                        "primary-fixed": "#89f5e7",
+                        "surface-container-low": "#f2f4f6",
+                        "on-primary-container": "#f4fffc",
+                        "tertiary-container": "#66768d",
+                        "surface-variant": "#e0e3e5",
+                        "on-secondary": "#ffffff",
+                        "outline": "#6d7a77",
+                        "surface-container-high": "#e6e8ea",
+                        "error-container": "#ffdad6",
+                        "primary": "#00685f",
+                        "tertiary": "#4d5d73",
+                        "surface-container": "#eceef0",
+                        "on-surface": "#191c1e",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-highest": "#e0e3e5",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "on-primary-fixed": "#00201d",
+                        "on-tertiary-container": "#fdfcff",
+                        "surface": "#f7f9fb",
+                        "primary-fixed-dim": "#6bd8cb",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "surface-tint": "#006a61",
+                        "on-tertiary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#6bd8cb",
+                        "tertiary-fixed": "#d3e4fe",
+                        "on-background": "#191c1e",
+                        "secondary-container": "#dae2fd",
+                        "on-primary-fixed-variant": "#005049",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "on-secondary-container": "#5c647a",
+                        "primary-container": "#008378",
+                        "inverse-surface": "#2d3133",
+                        "on-surface-variant": "#3d4947",
+                        "inverse-on-surface": "#eff1f3",
+                        "secondary": "#565e74",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "surface-dim": "#d8dadc",
+                        "secondary-fixed": "#dae2fd",
+                        "on-secondary-fixed": "#131b2e",
+                        "on-error": "#ffffff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "cell-padding-y": "8px",
+                        "stack-gap": "20px",
+                        "gutter": "16px",
+                        "container-max": "1440px",
+                        "sidebar-width": "240px",
+                        "cell-padding-x": "12px"
+                    },
+                    fontFamily: {
+                        "body-sm": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "display-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "label-xs": ["Inter"],
+                        "mono-sm": ["JetBrains Mono"]
+                    },
+                    fontSize: {
+                        "body-sm": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+                        "headline-sm": ["18px", { lineHeight: "28px", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "display-sm": ["24px", { lineHeight: "32px", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "600" }],
+                        "label-xs": ["11px", { lineHeight: "14px", fontWeight: "500" }],
+                        "mono-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for dense data tables/lists */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #bcc9c6; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6d7a77; }
+    </style>
+</head>
+<body class="bg-surface-bright text-on-surface font-body-sm h-screen w-screen overflow-hidden flex antialiased">
+<!-- SideNavBar (from JSON) -->
+<nav class="bg-surface-container-low border-r border-outline-variant fixed left-0 top-0 h-full w-sidebar-width flex flex-col p-4 gap-stack-gap z-20">
+<!-- Header -->
+<div class="flex items-center gap-3 px-2 mb-2">
+<div class="w-8 h-8 rounded bg-primary-container text-on-primary-container flex items-center justify-center font-headline-sm text-headline-sm font-bold">
+                O
+            </div>
+<div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface leading-tight">Operations</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-tight opacity-80">Ecommerce Hub</p>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-surface-container-highest hover:bg-surface-variant text-on-surface font-label-md text-label-md py-2 px-4 rounded-DEFAULT border border-outline-variant flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+            Upload Excel
+        </button>
+<!-- Navigation Links -->
+<div class="flex-1 flex flex-col gap-1 mt-4">
+<!-- Inactive -->
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                All Products
+            </a>
+<!-- Active: Match Review maps to Pending Review -->
+<a class="bg-secondary-container text-on-secondary-container font-bold rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md scale-[0.99] transition-transform" href="#">
+<span class="material-symbols-outlined text-[20px]">rate_review</span>
+                Pending Review
+                <span class="ml-auto bg-surface-container-highest text-on-surface px-1.5 py-0.5 rounded text-[10px]">12</span>
+</a>
+<!-- Inactive -->
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+                Marketplace Sync
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+                LLM Settings
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">archive</span>
+                Archive
+            </a>
+</div>
+<!-- Footer Links -->
+<div class="flex flex-col gap-1 border-t border-outline-variant pt-4 mt-auto">
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">help</span>
+                Help Center
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-variant rounded-lg p-2 flex items-center gap-3 font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Workspace -->
+<main class="ml-[240px] flex-1 flex flex-col h-full bg-surface-bright overflow-hidden">
+<!-- Inner Layout Split -->
+<div class="flex flex-1 h-full overflow-hidden">
+<!-- Left Column: Queue -->
+<div class="w-80 border-r border-outline-variant bg-surface-container-lowest flex flex-col h-full flex-shrink-0 z-10">
+<!-- Queue Header -->
+<div class="px-4 py-3 border-b border-outline-variant bg-surface-bright flex justify-between items-center">
+<h2 class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Review Queue</h2>
+<div class="flex items-center gap-2">
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Queue List -->
+<div class="flex-1 overflow-y-auto">
+<!-- Queue Item (Active) -->
+<div class="p-3 border-b border-outline-variant bg-secondary-container cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-1 pl-1">
+<span class="font-mono-sm text-mono-sm text-on-surface font-semibold">SKU-992-BLK</span>
+<span class="bg-surface-container-highest text-on-surface font-label-xs text-label-xs px-1.5 py-0.5 rounded-DEFAULT">98% Match</span>
+</div>
+<div class="pl-1 flex flex-col gap-1 text-on-surface-variant">
+<span class="font-body-sm text-body-sm truncate block">Sony WH-1000XM5 Wireless Noise Canceling Headphones</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-[14px]">storefront</span>
+<span class="font-label-xs text-label-xs">Amazon US</span>
+</div>
+</div>
+</div>
+<!-- Queue Item (Inactive) -->
+<div class="p-3 border-b border-outline-variant hover:bg-surface-container-low cursor-pointer transition-colors pl-4">
+<div class="flex justify-between items-start mb-1">
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">SKU-441-WHT</span>
+<span class="bg-surface-variant text-on-surface-variant font-label-xs text-label-xs px-1.5 py-0.5 rounded-DEFAULT">82% Match</span>
+</div>
+<div class="flex flex-col gap-1 text-on-surface-variant opacity-80">
+<span class="font-body-sm text-body-sm truncate block">Bose QuietComfort 45 Over-Ear Headphones</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-[14px]">storefront</span>
+<span class="font-label-xs text-label-xs">Walmart</span>
+</div>
+</div>
+</div>
+<!-- Queue Item (Inactive) -->
+<div class="p-3 border-b border-outline-variant hover:bg-surface-container-low cursor-pointer transition-colors pl-4">
+<div class="flex justify-between items-start mb-1">
+<span class="font-mono-sm text-mono-sm text-on-surface-variant">SKU-105-BLU</span>
+<span class="bg-surface-variant text-on-surface-variant font-label-xs text-label-xs px-1.5 py-0.5 rounded-DEFAULT">74% Match</span>
+</div>
+<div class="flex flex-col gap-1 text-on-surface-variant opacity-80">
+<span class="font-body-sm text-body-sm truncate block">Sennheiser Momentum 4 Wireless</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-[14px]">storefront</span>
+<span class="font-label-xs text-label-xs">Target</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Center/Right: Selected Match Detail -->
+<div class="flex-1 flex flex-col h-full bg-surface-container-low relative">
+<!-- Detail Header -->
+<div class="bg-surface-container-lowest border-b border-outline-variant p-6 flex flex-col gap-4 flex-shrink-0 z-10 shadow-sm">
+<div class="flex justify-between items-start">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h2 class="font-display-sm text-display-sm text-on-surface">SKU-992-BLK</h2>
+<span class="bg-surface-container-highest text-on-surface font-label-xs text-label-xs px-2 py-1 rounded-DEFAULT uppercase tracking-wider border border-outline-variant">Amazon US</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Sony WH-1000XM5 Wireless Noise Canceling Headphones</p>
+</div>
+<div class="text-right">
+<div class="font-display-sm text-display-sm text-on-surface">$348.00</div>
+<div class="font-label-xs text-label-xs text-on-surface-variant mt-1">Est. Competitor Price</div>
+</div>
+</div>
+<!-- AI Match Reason Banner -->
+<div class="bg-surface-bright border border-outline-variant rounded-DEFAULT p-3 flex gap-3 items-start">
+<span class="material-symbols-outlined text-primary mt-0.5">smart_toy</span>
+<div>
+<span class="font-label-md text-label-md text-on-surface block mb-0.5">LLM Match Analysis: 98% Confidence</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">High semantic similarity in title and technical specifications. Exact match on Manufacturer Part Number (WH1000XM5/B) and UPC code. Image embedding similarity is &gt;95%.</span>
+</div>
+</div>
+</div>
+<!-- Comparison Panes (Scrollable Area) -->
+<div class="flex-1 overflow-y-auto p-6 pb-24">
+<!-- URL Missing Warning State -->
+<div class="mb-6 bg-error-container text-on-error-container border border-[#ffb4ab] rounded-DEFAULT p-4 flex gap-3 items-center">
+<span class="material-symbols-outlined text-error">link_off</span>
+<div class="flex-1">
+<span class="font-label-md text-label-md block">Missing Competitor URL</span>
+<span class="font-body-sm text-body-sm opacity-90">The LLM identified a match, but the source URL was not scraped correctly. You must provide a valid URL to confirm this match.</span>
+</div>
+<div class="w-64">
+<input class="w-full h-8 px-2 border border-outline bg-surface-container-lowest text-on-surface font-body-sm text-body-sm rounded-DEFAULT focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-outline-variant" placeholder="https://..." type="text"/>
+</div>
+</div>
+<div class="flex gap-6 h-full">
+<!-- Pane: Our Product -->
+<div class="flex-1 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
+<div class="bg-surface-bright border-b border-outline-variant p-3 flex justify-between items-center">
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Internal Catalog (Source)</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">database</span>
+</div>
+<div class="p-6 flex flex-col gap-6 flex-1 overflow-y-auto">
+<div class="w-full h-48 bg-surface-container-low rounded-DEFAULT overflow-hidden border border-outline-variant flex items-center justify-center">
+<img class="max-w-full max-h-full object-contain mix-blend-multiply" data-alt="A professional studio product photograph of black over-ear wireless headphones resting on a minimalist white pedestal. Clean, bright lighting with subtle shadows, set against a completely pure white background. The aesthetic is extremely clean, high-end, and corporate ecommerce style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-yEc6_zES9vAxmyBuQ99W_gCHCMMl2dDpggU70wayXDrgQvpMby3af1o6r2C2BZN1AMpRbTkeA9DdISd1DgXCaHs9HdV6renp8dzWnDuY3Cll0nYVL0D2e28T2mm1ZRmKYRzq_mJuiRXPFnP9hkW1cnW4bs0tuLz-PiW36Y3U8pHsVWWVn541odmmH030WyGPGg-xlNcjPdjaGoskXnuie4694LWvZZImYDv0gom4U-QjCpAm5swQlg"/>
+</div>
+<table class="w-full text-left border-collapse">
+<tbody>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant w-1/3 align-top">Brand</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface">Sony</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">MPN</th>
+<td class="py-2 font-mono-sm text-mono-sm text-on-surface">WH1000XM5/B</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">UPC</th>
+<td class="py-2 font-mono-sm text-mono-sm text-on-surface">027242927230</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">Color</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface">Black</td>
+</tr>
+<tr>
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">Features</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface text-balance">Noise Canceling, Bluetooth Multipoint, 30hr Battery, Alexa Built-in</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Pane: Competitor Product -->
+<div class="flex-1 flex flex-col bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
+<div class="bg-surface-bright border-b border-outline-variant p-3 flex justify-between items-center">
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Scraped Competitor Data</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">travel_explore</span>
+</div>
+<div class="p-6 flex flex-col gap-6 flex-1 overflow-y-auto">
+<div class="w-full h-48 bg-surface-container-low rounded-DEFAULT overflow-hidden border border-outline-variant flex items-center justify-center">
+<img class="max-w-full max-h-full object-contain mix-blend-multiply" data-alt="A lifestyle product shot of black over-ear headphones placed on a light wooden desk next to a modern smartphone and a cup of coffee. The lighting is soft and natural, suggesting a home office environment. The color palette features neutral greys, whites, and warm wood tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMmt_GIFNkIvGY-ooVES3XgpypHUC-r3AQ_7uovFBC3dQ5XlJYlmd3YhRvHUzLULmkFD0rJ3--cyNzcPjPUbwQCjrve4XNuZfYBEhchngBYzmRRNL2I2IW5JwdPyjUmq24S3Eym8QBEkhor61E9NFKCygNQzVsokU3R6tk63vnJBfxmovukP7uqtXxRr9X13q-kQlyeAcfckawIfTT7yX1LKumXTttnq3KTAwiWEQmJNKaxXwpO_j2Zg"/>
+</div>
+<table class="w-full text-left border-collapse">
+<tbody>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant w-1/3 align-top">Brand</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface bg-primary-container text-on-primary-container px-1 -mx-1 rounded-sm w-fit inline-block">Sony</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">MPN</th>
+<td class="py-2 font-mono-sm text-mono-sm text-on-surface bg-primary-container text-on-primary-container px-1 -mx-1 rounded-sm w-fit inline-block">WH1000XM5/B</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">UPC</th>
+<td class="py-2 font-mono-sm text-mono-sm text-on-surface bg-primary-container text-on-primary-container px-1 -mx-1 rounded-sm w-fit inline-block">027242927230</td>
+</tr>
+<tr class="border-b border-surface-variant">
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">Color</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface">Black</td>
+</tr>
+<tr>
+<th class="py-2 pr-4 font-label-md text-label-md text-on-surface-variant align-top">Description</th>
+<td class="py-2 font-body-sm text-body-sm text-on-surface text-balance line-clamp-3">Sony WH-1000XM5 Wireless Industry Leading Noise Canceling Headphones with Auto Noise Canceling Optimizer, Crystal Clear Hands-Free Calling...</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky Action Bar -->
+<div class="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant p-4 flex justify-between items-center z-20">
+<button class="h-9 px-4 rounded-DEFAULT border border-outline text-on-surface font-label-md text-label-md hover:bg-surface-container-low transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">keyboard_return</span>
+                        Skip for Now
+                    </button>
+<div class="flex gap-3">
+<button class="h-9 px-6 rounded-DEFAULT bg-error text-on-error font-label-md text-label-md hover:bg-[#93000a] transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">close</span>
+                            Deny Match
+                        </button>
+<!-- Disabled state due to missing URL as requested -->
+<div class="relative group">
+<button class="h-9 px-6 rounded-DEFAULT bg-surface-variant text-on-surface-variant font-label-md text-label-md opacity-50 cursor-not-allowed flex items-center gap-2 border border-outline-variant" disabled="">
+<span class="material-symbols-outlined text-[18px]">check</span>
+                                Confirm Match
+                            </button>
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 bg-inverse-surface text-inverse-on-surface font-label-xs text-label-xs rounded-DEFAULT opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                                Requires valid competitor URL
+                            </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,7 +1,7 @@
 "use client";
 
-import { ExternalLink, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Bot, Database, ExternalLink, FileText, RotateCcw, Save, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -71,7 +71,6 @@ export default function ProductDetailPage() {
         ["L2", product.l2],
         ["L3", product.l3],
         ["L4", product.l4],
-        ["Product URL", product.product_url],
         ["Search query", product.search_query],
         ["Source file", product.source_filename],
         ["Created", new Date(product.created_at).toLocaleString()],
@@ -81,104 +80,148 @@ export default function ProductDetailPage() {
   const canSave = Boolean(selectedResult?.markdown_path) && !markdown.isLoading && draft !== (markdown.data ?? "");
 
   return (
-    <main className="page product-workspace">
-      {query.isLoading && <div className="panel muted">Loading product...</div>}
-      {query.error && <div className="panel error">{query.error.message}</div>}
+    <main className="page detail-page">
+      {query.isLoading && <div className="empty-state muted">Loading product...</div>}
+      {query.error && <div className="empty-state error">{query.error.message}</div>}
       {product && (
         <>
-          <header className="workspace-header">
-            <div>
-              <h1>{product.sku}</h1>
-              <p className="muted">{product.title}</p>
-            </div>
-            <div className="status-pill">{results.length} scrape results</div>
-          </header>
-
-          <section className="workspace-grid">
-            <div className="panel">
-              <h2>Product</h2>
-              <div className="detail-grid">
-                {detailFields.map(([label, value]) => (
-                  <div key={label}>
-                    <strong>{label}</strong>
-                    <div className="detail-value">{String(value ?? "")}</div>
-                  </div>
-                ))}
+          <header className="detail-topbar">
+            <div className="detail-heading">
+              <Link className="icon-button back-button" aria-label="Back to products" href="/products">
+                <ArrowLeft size={19} />
+              </Link>
+              <div>
+                <div className="row detail-kicker">
+                  <span className="sku-badge">SKU: {product.sku}</span>
+                  <span className="status-pill">{results.length} scrape results</span>
+                </div>
+                <h1>{product.title || product.sku}</h1>
               </div>
             </div>
+            {product.product_url && (
+              <a className="button" href={product.product_url} target="_blank" rel="noreferrer">
+                <ExternalLink size={16} /> View source
+              </a>
+            )}
+          </header>
 
-            <div className="panel">
-              <h2>Scrape results</h2>
-              {scrapeResults.isLoading && <p className="muted">Loading scrape results...</p>}
-              {scrapeResults.error && <p className="error">{scrapeResults.error.message}</p>}
-              {!scrapeResults.isLoading && !results.length && <p className="muted">No scrape results yet.</p>}
-              {!!results.length && (
-                <div className="result-list">
-                  {results.map((result) => (
-                    <button
-                      key={result.id}
-                      className={`result-button${selectedResult?.id === result.id ? " active" : ""}`}
-                      onClick={() => setSelectedResultId(result.id)}
-                    >
-                      <strong>{result.marketplace}</strong>
-                      <span>{result.status}</span>
-                      <span>{result.result_count} results</span>
-                    </button>
+          <div className="detail-content">
+            <section className="detail-overview">
+              <article className="panel metadata-card">
+                <div className="panel-heading">
+                  <Database size={17} />
+                  <h2>Core metadata</h2>
+                </div>
+                <div className="metadata-grid">
+                  {detailFields.map(([label, value]) => (
+                    <div key={label}>
+                      <span>{label}</span>
+                      <strong>{String(value ?? "—")}</strong>
+                    </div>
                   ))}
                 </div>
-              )}
-            </div>
+                {(product.bullet_points || product.specs) && (
+                  <div className="metadata-description">
+                    {product.bullet_points && <p>{product.bullet_points}</p>}
+                    {product.specs && <p>{product.specs}</p>}
+                  </div>
+                )}
+              </article>
+
+              <article className="panel sources-card">
+                <div className="panel-heading">
+                  <Search size={17} />
+                  <h2>Sources</h2>
+                </div>
+                {scrapeResults.isLoading && <p className="muted">Loading scrape results...</p>}
+                {scrapeResults.error && <p className="error">{scrapeResults.error.message}</p>}
+                {!scrapeResults.isLoading && !results.length && <p className="muted">No scrape results yet.</p>}
+                {!!results.length && (
+                  <div className="source-list">
+                    {results.map((result) => (
+                      <button
+                        key={result.id}
+                        className={`source-button${selectedResult?.id === result.id ? " active" : ""}`}
+                        onClick={() => setSelectedResultId(result.id)}
+                      >
+                        <span className="source-name">{result.marketplace}</span>
+                        <span className={`status-label status-${result.status}`}>{result.status.replaceAll("_", " ")}</span>
+                        <small>{result.result_count} listings</small>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </article>
+
+              <article className="panel ai-card">
+                <div className="ai-card-header">
+                  <div className="panel-heading">
+                    <Bot size={20} />
+                    <h2>AI Match Analysis</h2>
+                  </div>
+                  {selectedResult?.match_confidence !== null && selectedResult?.match_confidence !== undefined && (
+                    <strong className="confidence-score">{selectedResult.match_confidence}%</strong>
+                  )}
+                </div>
+                {selectedResult ? (
+                  <>
+                    <div className="row match-meta">
+                      <span className={`status-label status-${selectedResult.match_status}`}>{selectedResult.match_status.replaceAll("_", " ")}</span>
+                      <span className="status-label">{selectedResult.review_status}</span>
+                      {selectedResult.match_model && <span className="muted">Model: {selectedResult.match_model}</span>}
+                    </div>
+                    <div className="reasoning-block">
+                      <span>Reasoning</span>
+                      <p>{selectedResult.match_reason || "Run matching to generate an analysis for this source."}</p>
+                    </div>
+                    {selectedResult.match_error_message && <p className="error">{selectedResult.match_error_message}</p>}
+                    {runMatch.error && <p className="error">{runMatch.error.message}</p>}
+                    <div className="row ai-actions">
+                      {selectedResult.match_status === "matched" && selectedResult.matched_item_id && (
+                        <Link className="button" href={`/matches/review?result=${selectedResult.id}`}>
+                          <ExternalLink size={16} /> Review match
+                        </Link>
+                      )}
+                      <button
+                        className="button primary"
+                        disabled={!selectedResult.items.length || selectedResult.match_status === "running" || runMatch.isPending}
+                        onClick={() => runMatch.mutate(selectedResult.id)}
+                      >
+                        <Sparkles size={16} /> {selectedResult.match_status === "matched" ? "Rerun match" : "Run match"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="muted">Select a completed source to inspect its match analysis.</p>
+                )}
+              </article>
+            </section>
 
             {selectedResult && (
               <>
-                <div className="panel span-2">
-                  <div className="row between">
-                    <h2>{selectedResult.marketplace} result</h2>
-                    <span className="status-pill">{selectedResult.status}</span>
+                <section className="panel cross-reference">
+                  <div className="panel-heading panel-heading-between">
+                    <div className="row">
+                      <Search size={17} />
+                      <h2>Data cross-reference</h2>
+                    </div>
+                    <span className={`status-label status-${selectedResult.status}`}>{selectedResult.status.replaceAll("_", " ")}</span>
                   </div>
-                  <div className="field-block">
-                    <strong>Search URL</strong>
-                    <a className="url" href={selectedResult.search_url} target="_blank" rel="noreferrer">
-                      {selectedResult.search_url}
+                  <div className="source-url-row">
+                    <span className="muted">Search URL</span>
+                    <a href={selectedResult.search_url} target="_blank" rel="noreferrer">
+                      {selectedResult.search_url} <ExternalLink size={13} />
                     </a>
                   </div>
                   {selectedResult.error_message && <p className="error">{selectedResult.error_message}</p>}
-                  <div className="field-block">
-                    <div className="row between">
-                      <strong>LLM match</strong>
-                      <div className="row">
-                        {selectedResult.match_status === "matched" && selectedResult.matched_item_id && (
-                          <Link className="button" href={`/matches/review?result=${selectedResult.id}`}>
-                            <ExternalLink size={16} /> Review
-                          </Link>
-                        )}
-                        <button
-                          className="button"
-                          disabled={!selectedResult.items.length || selectedResult.match_status === "running" || runMatch.isPending}
-                          onClick={() => runMatch.mutate(selectedResult.id)}
-                        >
-                          <Sparkles size={16} /> {selectedResult.match_status === "matched" ? "Rerun match" : "Run match"}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="row">
-                      <span className="status-pill">{selectedResult.match_status.replace("_", " ")}</span>
-                      <span className="status-pill">{selectedResult.review_status}</span>
-                      {selectedResult.match_confidence !== null && <span className="status-pill">{selectedResult.match_confidence}%</span>}
-                      {selectedResult.match_model && <span className="status-pill">{selectedResult.match_model}</span>}
-                      {selectedResult.matched_at && <span className="muted">{new Date(selectedResult.matched_at).toLocaleString()}</span>}
-                    </div>
-                    {selectedResult.match_reason && <p className="muted">{selectedResult.match_reason}</p>}
-                    {selectedResult.match_error_message && <p className="error">{selectedResult.match_error_message}</p>}
-                    {runMatch.error && <p className="error">{runMatch.error.message}</p>}
-                  </div>
-                  {!!selectedResult.items.length && (
-                    <div className="table-wrap">
+                  {!!selectedResult.items.length ? (
+                    <div className="table-wrap" tabIndex={0} aria-label={`${selectedResult.marketplace} scraped listings`}>
                       <table className="compact-table">
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>Title</th>
+                            <th>Match</th>
+                            <th>Source</th>
+                            <th>Extracted title</th>
                             <th>Price</th>
                             <th>URL</th>
                           </tr>
@@ -186,12 +229,13 @@ export default function ProductDetailPage() {
                         <tbody>
                           {selectedResult.items.map((item) => (
                             <tr key={item.id} className={item.id === selectedResult.matched_item_id ? "matched-row" : undefined}>
-                              <td>{item.position}</td>
+                              <td><span className={`match-radio${item.id === selectedResult.matched_item_id ? " selected" : ""}`} /></td>
+                              <td>{selectedResult.marketplace}</td>
                               <td>{item.title}</td>
-                              <td>{item.price ?? ""}</td>
+                              <td>{item.price ?? "—"}</td>
                               <td>
-                                <a className="url" href={item.url} target="_blank" rel="noreferrer">
-                                  {item.url}
+                                <a className="row-link" href={item.url} target="_blank" rel="noreferrer">
+                                  Open <ExternalLink size={13} />
                                 </a>
                               </td>
                             </tr>
@@ -199,42 +243,44 @@ export default function ProductDetailPage() {
                         </tbody>
                       </table>
                     </div>
+                  ) : (
+                    <p className="muted">No extracted listings for this source.</p>
                   )}
-                </div>
+                </section>
 
-                <div className="panel span-2">
-                  <div className="row between">
-                    <h2>Markdown</h2>
+                <section className="panel markdown-panel">
+                  <div className="panel-heading panel-heading-between">
                     <div className="row">
-                      {selectedResult.markdown_path ? (
+                      <FileText size={17} />
+                      <h2>Normalized description (Markdown)</h2>
+                    </div>
+                    <div className="row">
+                      {selectedResult.markdown_path && (
                         <a className="button" href={scrapeMarkdownUrl(selectedResult.id)} target="_blank" rel="noreferrer">
-                          <ExternalLink size={16} /> Open raw
+                          <ExternalLink size={15} /> Raw
                         </a>
-                      ) : (
-                        <button className="button" disabled>
-                          <ExternalLink size={16} /> Open raw
-                        </button>
                       )}
                       <button className="button" disabled={!selectedResult.markdown_path || markdown.isLoading} onClick={() => setDraft(markdown.data ?? "")}>
-                        <RotateCcw size={16} /> Reset
+                        <RotateCcw size={15} /> Reset
                       </button>
                       <button
                         className="button primary"
                         disabled={!canSave || saveMarkdown.isPending}
                         onClick={() => saveMarkdown.mutate({ id: selectedResult.id, content: draft })}
                       >
-                        <Save size={16} /> Save
+                        <Save size={15} /> Save changes
                       </button>
                     </div>
                   </div>
                   {markdown.isLoading && <p className="muted">Loading markdown...</p>}
                   {markdown.error && <p className="error">{markdown.error.message}</p>}
                   {saveMarkdown.error && <p className="error">{saveMarkdown.error.message}</p>}
-                  {message && <p className="muted">{message}</p>}
+                  {message && <p className="muted" aria-live="polite">{message}</p>}
                   {!selectedResult.markdown_path && <p className="muted">Markdown has not been generated.</p>}
                   {selectedResult.markdown_path && (
                     <textarea
                       className="input markdown-editor"
+                      aria-label="Normalized product description in Markdown"
                       value={draft}
                       onChange={(event) => {
                         setDraft(event.target.value);
@@ -242,41 +288,47 @@ export default function ProductDetailPage() {
                       }}
                     />
                   )}
-                </div>
+                </section>
               </>
             )}
 
-            <div className="panel">
-              <div className="row between">
-                <h2>Dynamic attributes</h2>
-                <input
-                  className="input"
-                  placeholder="Search attributes"
-                  value={attributeSearch}
-                  onChange={(event) => setAttributeSearch(event.target.value)}
-                />
-              </div>
-              {!!attributes.length ? (
-                <table className="compact-table">
-                  <tbody>
-                    {attributes.map(([key, value]) => (
-                      <tr key={key}>
-                        <th>{key}</th>
-                        <td>{value == null ? "" : String(value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="muted">No attributes.</p>
-              )}
-            </div>
+            <section className="detail-bottom-grid">
+              <article className="panel attributes-panel">
+                <div className="panel-heading panel-heading-between">
+                  <h2>Dynamic attributes</h2>
+                  <label className="search-field compact-search">
+                    <Search size={15} />
+                    <span className="sr-only">Search attributes</span>
+                    <input value={attributeSearch} placeholder="Search attributes" onChange={(event) => setAttributeSearch(event.target.value)} />
+                  </label>
+                </div>
+                {!!attributes.length ? (
+                  <div className="table-wrap" tabIndex={0} aria-label="Dynamic product attributes">
+                    <table className="compact-table attribute-table">
+                      <tbody>
+                        {attributes.map(([key, value]) => (
+                          <tr key={key}>
+                            <th>{key}</th>
+                            <td>{value == null ? "" : String(value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="muted">No attributes.</p>
+                )}
+              </article>
 
-            <div className="panel">
-              <h2>Source row</h2>
-              <pre>{JSON.stringify(product.source_row, null, 2)}</pre>
-            </div>
-          </section>
+              <article className="raw-payload">
+                <div className="panel-heading">
+                  <FileText size={16} />
+                  <h2>Raw payload preview (source)</h2>
+                </div>
+                <pre>{JSON.stringify(product.source_row, null, 2)}</pre>
+              </article>
+            </section>
+          </div>
         </>
       )}
     </main>

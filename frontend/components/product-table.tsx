@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink, Eye } from "lucide-react";
 import Link from "next/link";
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper } from "@tanstack/react-table";
 
@@ -18,16 +19,30 @@ const columns = [
         onChange={table.getToggleAllRowsSelectedHandler()}
       />
     ),
-    cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />,
+    cell: ({ row }) => (
+      <input
+        aria-label={`Select ${row.original.sku}`}
+        type="checkbox"
+        checked={row.getIsSelected()}
+        onChange={row.getToggleSelectedHandler()}
+      />
+    ),
   }),
-  column.accessor("sku", { header: "SKU" }),
+  column.accessor("sku", {
+    header: "SKU",
+    cell: ({ row }) => (
+      <Link className="sku-link" href={`/products/${row.original.id}`}>
+        {row.original.sku}
+      </Link>
+    ),
+  }),
   column.accessor("title", { header: "Title", cell: (info) => info.getValue() ?? "" }),
   column.accessor("product_url", {
     header: "URL",
     cell: (info) =>
       info.getValue() ? (
-        <a className="url" href={info.getValue() ?? ""} target="_blank" rel="noreferrer">
-          {info.getValue()}
+        <a className="external-icon" aria-label="Open product URL" href={info.getValue() ?? ""} target="_blank" rel="noreferrer">
+          <ExternalLink size={15} />
         </a>
       ) : (
         ""
@@ -35,16 +50,20 @@ const columns = [
   }),
   column.accessor("product_type", { header: "Product Type", cell: (info) => info.getValue() ?? "" }),
   column.accessor("attribute_set", { header: "Attribute Set", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l1", { header: "Cat L1", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l2", { header: "Cat L2", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l3", { header: "Cat L3", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("l4", { header: "Cat L4", cell: (info) => info.getValue() ?? "" }),
-  column.accessor("search_query", { header: "Search Query", cell: (info) => info.getValue() ?? "" }),
+  column.display({
+    id: "categories",
+    header: "Categories",
+    cell: ({ row }) => [row.original.l1, row.original.l2, row.original.l3, row.original.l4].filter(Boolean).join(" › "),
+  }),
   column.accessor("updated_at", { header: "Last Updated", cell: (info) => new Date(info.getValue()).toLocaleString() }),
   column.display({
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => <Link href={`/products/${row.original.id}`}>View</Link>,
+    cell: ({ row }) => (
+      <Link className="external-icon" aria-label={`View ${row.original.sku}`} href={`/products/${row.original.id}`}>
+        <Eye size={16} />
+      </Link>
+    ),
   }),
 ];
 
@@ -70,11 +89,11 @@ export function ProductTable({
   });
 
   if (!items.length) {
-    return <div className="panel muted">No products match the current filters.</div>;
+    return <div className="empty-state muted">No products match the current filters.</div>;
   }
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0} aria-label="Products table">
       <table>
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -87,7 +106,7 @@ export function ProductTable({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
+            <tr key={row.id} className={row.getIsSelected() ? "selected-row" : undefined}>
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
               ))}

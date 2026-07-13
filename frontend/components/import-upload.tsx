@@ -10,11 +10,10 @@ export function ImportUpload({ onImported }: { onImported?: () => void }) {
   const result = mutation.data;
 
   return (
-    <div className="grid">
-      <div className="panel">
-        <div className="row">
-          <label className="button primary">
-            <Upload size={16} /> Upload .xls/.xlsx
+    <div className="import-control" id="import-products">
+      <div className="row">
+          <label className="button primary" title="Upload an Excel catalog">
+            <Upload size={16} /> Upload Excel
             <input
               hidden
               type="file"
@@ -27,10 +26,9 @@ export function ImportUpload({ onImported }: { onImported?: () => void }) {
           </label>
           {mutation.isPending && <span className="muted">Uploading and processing...</span>}
           {mutation.error && <span className="error">{mutation.error.message}</span>}
-        </div>
       </div>
       {result && (
-        <div className="panel">
+        <div className="import-result" aria-live="polite">
           <h2>Import summary</h2>
           <p>
             {result.status}: {result.inserted_rows} inserted, {result.updated_rows} updated, {result.failed_rows} failed from{" "}

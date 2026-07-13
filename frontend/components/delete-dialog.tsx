@@ -44,23 +44,26 @@ export function DeleteControls({
   });
 
   return (
-    <div className="panel">
-      <div className="row">
-        <span className="muted">{selectedIds.length} explicit rows selected across pages.</span>
-        <button className="button danger" disabled={!selectedIds.length || selectedDelete.isPending} onClick={() => selectedDelete.mutate(selectedIds)}>
-          <Trash2 size={16} /> Delete selected
+    <div className="delete-controls">
+      <div className="delete-actions">
+        <button
+          className="button danger"
+          disabled={!selectedIds.length || selectedDelete.isPending}
+          onClick={() => window.confirm(`Delete ${selectedIds.length} selected products? This cannot be undone.`) && selectedDelete.mutate(selectedIds)}
+        >
+          <Trash2 size={16} /> Delete
         </button>
-        <button className="button danger" disabled={filterPreview.isPending} onClick={() => filterPreview.mutate()}>
-          Preview delete matching filters
+        <button className="text-button danger-text" disabled={filterPreview.isPending} onClick={() => filterPreview.mutate()}>
+          Delete by filter
         </button>
       </div>
-      {message && <p className="muted">{message}</p>}
+      {message && <p className="muted action-message" aria-live="polite">{message}</p>}
       {selectedDelete.error && <p className="error">{selectedDelete.error.message}</p>}
       {filterPreview.error && <p className="error">{filterPreview.error.message}</p>}
       {preview && (
-        <div className="row">
+        <div className="danger-confirmation">
           <span className="error">Deleting every product matching the active filters: {preview.count}</span>
-          <input className="input" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={preview.phrase} />
+          <input aria-label="Delete confirmation phrase" className="input" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={preview.phrase} />
           <button className="button danger" disabled={confirmation !== preview.phrase || filterDelete.isPending} onClick={() => filterDelete.mutate()}>
             Confirm filter delete
           </button>

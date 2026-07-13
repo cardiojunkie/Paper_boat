@@ -12,7 +12,7 @@ Competitor scraping, product matching, LLM calls, search URL generation, backgro
 
 ## Local Setup
 
-```bash
+```bash 
 cp .env.example .env
 docker compose up -d postgres
 

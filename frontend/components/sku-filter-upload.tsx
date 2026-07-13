@@ -11,10 +11,11 @@ export function SkuFilterUpload({ filters, onChange }: { filters: ProductFilters
   const result = mutation.data;
 
   return (
-    <div className="panel">
-      <div className="row">
+    <div className="sku-filter-panel">
+      <strong>SKU list</strong>
+      <div className="filter-upload-actions">
         <label className="button">
-          <Upload size={16} /> SKU file
+          <Upload size={15} /> Upload file
           <input
             hidden
             type="file"
@@ -31,15 +32,15 @@ export function SkuFilterUpload({ filters, onChange }: { filters: ProductFilters
           />
         </label>
         {filters.sku_filter_token && (
-          <button className="button" onClick={() => onChange({ ...filters, sku_filter_token: undefined })}>
-            <X size={16} /> Clear SKU filter
+          <button className="icon-button" aria-label="Clear SKU file filter" onClick={() => onChange({ ...filters, sku_filter_token: undefined })}>
+            <X size={16} />
           </button>
         )}
         {mutation.isPending && <span className="muted">Reading SKU filter...</span>}
         {mutation.error && <span className="error">{mutation.error.message}</span>}
       </div>
       {result && (
-        <p className="muted">
+        <p className="muted filter-note">
           Read {result.read_count} SKUs. {result.existing_count} exist, {result.missing_count} not found,{" "}
           {result.malformed_rows.length} malformed rows.
         </p>

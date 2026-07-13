@@ -29,11 +29,12 @@ kill_pid_file() {
 
 wait_for_ports_free() {
   for _ in {1..20}; do
-    if ! fuser 8000/tcp 3000/tcp >/dev/null 2>&1; then
+    if ! fuser 8000/tcp 3000/tcp 5432/tcp >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.25
   done
+  echo "Ports 3000, 8000, or 5432 are still busy after cleanup."
   return 1
 }
 
@@ -77,10 +78,12 @@ make_frontend_private() {
   gh codespace ports visibility 3000:private -c "$CODESPACE_NAME" >/dev/null 2>&1 || true
 }
 
-stop_ports() {
+stop_all() {
   kill_pid_file logs/backend.pid
   kill_pid_file logs/frontend.pid
   fuser -k 8000/tcp 3000/tcp >/dev/null 2>&1 || true
+  docker compose down --remove-orphans >/dev/null 2>&1 || true
+  rm -f logs/backend.pid logs/frontend.pid
   make_frontend_private
 }
 
@@ -96,29 +99,61 @@ warn_if_private_frontend() {
   fi
 }
 
+wait_for_public_frontend() {
+  local url="$1"
+  [[ "$url" == http://127.0.0.1:* ]] && return 0
+
+  local status body probe
+  for _ in {1..30}; do
+    probe="${url}?pickpilot_probe=$(date +%s%N)"
+    body="$(curl -sSL --max-time 10 -w $'\n%{http_code}' "$probe" 2>/dev/null || true)"
+    status="${body##*$'\n'}"
+    body="${body%$'\n'*}"
+    if [[ "$status" == "200" ]] && grep -Eq "PickPilot|Products" <<<"$body"; then
+      echo "Public frontend is ready."
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Public frontend did not become ready: $url"
+  echo "Last HTTP status: ${status:-unknown}"
+  echo "Last response headers:"
+  curl -sS -I --max-time 10 "$url" 2>/dev/null | tr -d '\r' || true
+  echo
+  echo "Port 3000 may still be private, stale, or serving a tunnel error page."
+  return 1
+}
+
 if [[ "${1:-}" == "stop" ]]; then
   mkdir -p logs
   echo "Stopping app..."
-  stop_ports
+  stop_all
+  wait_for_ports_free
   exit 0
 fi
 
 echo "Clearing app caches..."
 mkdir -p logs
-stop_ports
-wait_for_ports_free || true
-rm_rf_retry frontend/.next .pytest_cache logs/backend.log logs/frontend.log
+stop_all
+wait_for_ports_free
+rm_rf_retry frontend/.next .pytest_cache /tmp/pickpilot-npm-cache logs/backend.log logs/frontend.log
 find backend frontend -type d \( -name __pycache__ -o -name .pytest_cache \) -prune -exec rm -rf {} +
+
+if [[ ! -f .env && -f .env.example ]]; then
+  echo "Creating .env from .env.example..."
+  cp .env.example .env
+fi
 
 if [[ ! -x "$PY" ]]; then
   python3 -m venv backend/.venv
 fi
 
 echo "Installing backend dependencies..."
-"$PY" -m pip install -r backend/requirements.txt >/dev/null
+"$PY" -m pip install --no-cache-dir -r backend/requirements.txt >/dev/null
 
 echo "Installing frontend dependencies..."
-npm install --prefix frontend --no-audit --no-fund >/dev/null
+npm install --prefix frontend --no-audit --no-fund --cache /tmp/pickpilot-npm-cache >/dev/null
 
 echo "Starting PostgreSQL..."
 docker compose up -d postgres
@@ -141,7 +176,8 @@ cleanup() {
   trap - EXIT INT TERM
   echo
   echo "Stopping app..."
-  stop_ports
+  stop_all
+  wait_for_ports_free || true
 }
 trap cleanup EXIT INT TERM
 
@@ -172,6 +208,7 @@ wait_for() {
 wait_for "Backend" "http://127.0.0.1:8000/" "$BACKEND_PID" "logs/backend.log"
 wait_for "Frontend root" "http://127.0.0.1:3000/" "$FRONTEND_PID" "logs/frontend.log"
 wait_for "Frontend products" "http://127.0.0.1:3000/products" "$FRONTEND_PID" "logs/frontend.log"
+wait_for "Frontend API proxy" "http://127.0.0.1:3000/api/products" "$FRONTEND_PID" "logs/frontend.log"
 
 maybe_make_frontend_public
 FRONTEND_URL="$(codespaces_url 3000)"
@@ -179,6 +216,7 @@ BACKEND_URL="$(codespaces_url 8000)"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:3000}"
 BACKEND_URL="${BACKEND_URL:-http://127.0.0.1:8000}"
 warn_if_private_frontend "$FRONTEND_URL"
+wait_for_public_frontend "$FRONTEND_URL"
 
 echo "Ready:"
 echo "  Frontend:           ${FRONTEND_URL}"

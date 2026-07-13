@@ -41,11 +41,10 @@ export function ScrapeControls({ selectedIds, onStaleSelection }: { selectedIds:
   const jobError = jobs.find((job) => job.error)?.error;
 
   return (
-    <div className="panel">
-      <div className="row">
-        <span className="muted">Scrape selected products: {selectedIds.length}</span>
+    <div className="scrape-controls">
+      <div className="marketplace-group">
         {(marketplaces.data ?? []).map((marketplace) => (
-          <label key={marketplace.key} className="button">
+          <label key={marketplace.key} className="marketplace-option">
             <input
               type="checkbox"
               checked={selectedMarketplaces.includes(marketplace.key)}
@@ -63,13 +62,13 @@ export function ScrapeControls({ selectedIds, onStaleSelection }: { selectedIds:
           disabled={!selectedIds.length || !selectedMarketplaces.length || createJob.isPending}
           onClick={() => createJob.mutate()}
         >
-          <Search size={16} /> Scrape selected
+          <Search size={16} /> Scrape
         </button>
       </div>
       {marketplaces.error && <p className="error">{marketplaces.error.message}</p>}
       {createJob.error && <p className="error">{createJob.error.message}</p>}
       {jobIds.length > 0 && (
-        <p className="muted">
+        <p className="muted action-message" aria-live="polite">
           SKU jobs: {completed} done, {failed} with errors, {jobIds.length} total.
         </p>
       )}

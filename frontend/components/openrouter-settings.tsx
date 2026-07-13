@@ -26,7 +26,7 @@ export function OpenRouterSettings() {
   };
 
   return (
-    <form className="panel" onSubmit={save}>
+    <form className="settings-panel" onSubmit={save}>
       <div className="row between">
         <h2>OpenRouter</h2>
         <span className="status-pill">{query.data?.configured ? "Key configured" : "No key"}</span>
@@ -34,6 +34,7 @@ export function OpenRouterSettings() {
       <div className="field-block">
         <input
           className="input"
+          aria-label="OpenRouter API key"
           type="password"
           value={apiKey}
           placeholder="API key"
@@ -56,7 +57,7 @@ export function OpenRouterSettings() {
           </span>
         )}
       </div>
-      {message && <p className="muted">{message}</p>}
+      {message && <p className="muted" aria-live="polite">{message}</p>}
       {query.error && <p className="error">{query.error.message}</p>}
       {mutation.error && <p className="error">{mutation.error.message}</p>}
     </form>

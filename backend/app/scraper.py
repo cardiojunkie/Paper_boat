@@ -5,7 +5,6 @@ from re import search, sub
 from time import sleep
 from urllib.parse import quote, quote_plus, urljoin
 
-from scrapling.fetchers import Fetcher
 from scrapling.parser import Adaptor
 
 from .config import settings
@@ -43,6 +42,15 @@ class ScrapedItem:
     price: str | None = None
 
 
+class Fetcher:
+    # ponytail: lazy import keeps app/TestClient startup away from fetcher event-loop deps.
+    @classmethod
+    def get(cls, url: str, **kwargs):
+        from scrapling.fetchers import Fetcher as ScraplingFetcher
+
+        return ScraplingFetcher.get(url, **kwargs)
+
+
 def build_search_url(marketplace: str, query: str) -> str:
     template = MARKETPLACES[marketplace]["template"]
     return template.format(query_plus=quote_plus(query), query_percent=quote(query))
@@ -56,6 +64,19 @@ def safe_sku_filename(sku: str) -> str:
 def _text(selector) -> str:
     text = selector.get_all_text(separator=" ", strip=True)
     return sub(r"\s+", " ", text).strip()
+
+
+def _title(selector) -> str:
+    for attr in ("aria-label", "title", "alt"):
+        value = selector.attrib.get(attr, "").strip()
+        if value:
+            return value
+    image = _first(selector, "img[alt]")
+    if image:
+        value = image.attrib.get("alt", "").strip()
+        if value:
+            return value
+    return _text(selector)
 
 
 def _first(selectors, css: str):
@@ -85,12 +106,13 @@ def _amazon_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
         *page.css("[data-cel-widget^='MAIN-SEARCH_RESULTS']"),
     ]
     for card in cards:
-        link = _first(card, "a[href*='/dp/']")
+        links = [link for link in card.css("a[href*='/dp/']") if "#customerReviews" not in link.attrib.get("href", "")]
+        link = next((candidate for candidate in links if _text(candidate)), links[0] if links else None)
         if not link:
             continue
         href = link.attrib.get("href", "")
         title_node = _first(card, "h2[aria-label]")
-        title = title_node.attrib.get("aria-label", "").strip() if title_node else _text(link)
+        title = _title(title_node) if title_node else _title(link)
         if not href or not title:
             continue
         key = _asin(card, href)
@@ -168,6 +190,28 @@ def _noon_blocked(page: Adaptor) -> bool:
     return bool(page.css("a[href*='akamai.com/privacy']")) and not page.css("a[href*='/uae-en/'][href*='/p/']")
 
 
+def _blocked_reason(page: Adaptor, marketplace: str) -> str | None:
+    if marketplace == "noon" and _noon_blocked(page):
+        return "Akamai privacy page"
+    status = getattr(page, "status", None)
+    if status and int(status) >= 400:
+        return f"HTTP {status}"
+    text = _text(page).lower()
+    if not text and not page.css("a[href]"):
+        return "empty response"
+    blocked_markers = (
+        "access denied",
+        "captcha",
+        "enable javascript",
+        "enter the characters you see below",
+        "service unavailable",
+        "verify you are human",
+    )
+    if any(marker in text for marker in blocked_markers):
+        return "challenge page"
+    return None
+
+
 def _noon_price(card) -> tuple[str | None, str]:
     amount_node = _first(card, "[data-qa='plp-product-box-price'] strong[class*='_amount']")
     amount = _text(amount_node) if amount_node else ""
@@ -210,6 +254,10 @@ def _noon_items(page: Adaptor, search_url: str) -> list[ScrapedItem]:
 
 
 def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[ScrapedItem]:
+    reason = _blocked_reason(page, marketplace)
+    if reason:
+        raise RuntimeError(f"{MARKETPLACES[marketplace]['label']} blocked request: {reason}")
+
     if marketplace == "amazon":
         items = _amazon_items(page, search_url)
         if items:
@@ -218,8 +266,6 @@ def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[S
         items = _noon_items(page, search_url)
         if items:
             return items
-        if _noon_blocked(page):
-            raise RuntimeError("Noon blocked request: Akamai privacy page")
     if marketplace == "sharafdg":
         items = _sharafdg_items(page, search_url)
         if items:
@@ -235,7 +281,7 @@ def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[S
     for css in selectors:
         for link in page.css(css):
             href = link.attrib.get("href")
-            title = _text(link)
+            title = _title(link)
             if not href or not title:
                 continue
             absolute = urljoin(search_url, href)
@@ -245,11 +291,11 @@ def _items_from_page(page: Adaptor, marketplace: str, search_url: str) -> list[S
             items.append(ScrapedItem(len(items) + 1, title, absolute))
             if len(items) >= settings.scrape_max_results:
                 return items
-    return items
+    raise RuntimeError(f"{MARKETPLACES[marketplace]['label']} returned no product results")
 
 
 def scrape_marketplace(marketplace: str, search_url: str) -> list[ScrapedItem]:
-    page = Fetcher.get(search_url, timeout=settings.scrape_timeout_seconds)
+    page = Fetcher.get(search_url, timeout=settings.scrape_timeout_seconds, follow_redirects=True)
     if settings.scrape_delay_seconds:
         sleep(settings.scrape_delay_seconds)
     return _items_from_page(page, marketplace, search_url)

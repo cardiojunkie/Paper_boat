@@ -117,6 +117,8 @@ def run_scrape_job(job_id: uuid.UUID, session_factory=SessionLocal) -> None:
             items = []
             try:
                 items = scrape_marketplace(result.marketplace, result.search_url)
+                if not items:
+                    raise RuntimeError(f"{MARKETPLACES[result.marketplace]['label']} returned no product results")
                 result.status = "completed"
                 result.result_count = len(items)
                 db.add_all(

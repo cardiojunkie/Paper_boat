@@ -1,12 +1,12 @@
 alembic
-fastapi
-httpx
+fastapi==0.115.6
+httpx==0.27.2
 openpyxl
 xlrd
 psycopg[binary]
 pydantic-settings
 pytest
 python-multipart
-scrapling
+scrapling[fetchers]==0.4.10
 SQLAlchemy>=2
 uvicorn[standard]

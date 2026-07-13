@@ -1,12 +1,11 @@
 "use client";
 
-import { Check, ExternalLink, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bot, Check, Database, ExternalLink, Link2Off, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { confirmMatchReview, denyMatchReview, listMatchReviews } from "../../../lib/api";
-import type { MatchReview } from "../../../lib/types";
 
 function isHttpUrl(value: string | null | undefined) {
   try {
@@ -17,21 +16,54 @@ function isHttpUrl(value: string | null | undefined) {
   }
 }
 
-function FramePane({ title, url }: { title: string; url: string | null }) {
+function ComparisonCard({
+  kind,
+  title,
+  url,
+  rows,
+}: {
+  kind: "catalog" | "competitor";
+  title: string;
+  url: string | null;
+  rows: [string, string | null | undefined][];
+}) {
   const canOpen = isHttpUrl(url);
 
   return (
-    <div className="review-pane">
-      <div className="row between">
-        <strong>{title}</strong>
+    <article className="comparison-card">
+      <header>
+        <span>{kind === "catalog" ? <Database size={17} /> : <Search size={17} />}{title}</span>
         {canOpen && (
-          <a className="button" href={url ?? ""} target="_blank" rel="noreferrer">
-            <ExternalLink size={16} /> Open
+          <a className="external-icon" aria-label={`Open ${title}`} href={url ?? ""} target="_blank" rel="noreferrer">
+            <ExternalLink size={16} />
           </a>
         )}
+      </header>
+      <div className={`comparison-placeholder ${kind}`}>
+        {kind === "catalog" ? <Database size={34} /> : <Search size={34} />}
+        <span>{kind === "catalog" ? "Internal product record" : "Scraped marketplace result"}</span>
       </div>
-      {canOpen ? <iframe src={url ?? ""} title={title} /> : <div className="review-empty muted">Missing URL</div>}
-    </div>
+      <dl>
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value || "—"}</dd>
+          </div>
+        ))}
+        <div>
+          <dt>URL</dt>
+          <dd>
+            {canOpen ? (
+              <a className="row-link" href={url ?? ""} target="_blank" rel="noreferrer">
+                Open listing <ExternalLink size={13} />
+              </a>
+            ) : (
+              <span className="error">Missing or invalid</span>
+            )}
+          </dd>
+        </div>
+      </dl>
+    </article>
   );
 }
 
@@ -69,105 +101,147 @@ export default function MatchReviewPage() {
   const confirm = useMutation({
     mutationFn: confirmMatchReview,
     onSuccess: () => {
-      setMessage("Confirmed.");
+      setMessage("Match confirmed.");
       onSettled();
     },
   });
   const deny = useMutation({
     mutationFn: denyMatchReview,
     onSuccess: () => {
-      setMessage("Denied.");
+      setMessage("Match denied.");
       onSettled();
     },
   });
   const busy = confirm.isPending || deny.isPending;
-  const canConfirm = Boolean(selected && isHttpUrl(selected.product_url) && isHttpUrl(selected.competitor_url) && !busy);
+  const productUrlValid = isHttpUrl(selected?.product_url);
+  const competitorUrlValid = isHttpUrl(selected?.competitor_url);
+  const canConfirm = Boolean(selected && productUrlValid && competitorUrlValid && !busy);
 
   return (
-    <main className="page product-workspace">
-      <header className="workspace-header">
-        <div>
-          <h1>Review</h1>
-          <p className="muted">Pending LLM matches</p>
-        </div>
-        <div className="status-pill">{reviews.length} pending</div>
-      </header>
-
-      <section className="workspace-grid">
-        <div className="panel">
-          <h2>Queue</h2>
-          {reviewsQuery.isLoading && <p className="muted">Loading matches...</p>}
-          {reviewsQuery.error && <p className="error">{reviewsQuery.error.message}</p>}
-          {!reviewsQuery.isLoading && !reviews.length && <p className="muted">No pending matches.</p>}
+    <main className="review-page">
+      <section className="review-workspace">
+        <aside className="review-queue">
+          <header>
+            <span>Review queue</span>
+            <strong>{reviews.length}</strong>
+          </header>
+          {reviewsQuery.isLoading && <p className="muted queue-state">Loading matches...</p>}
+          {reviewsQuery.error && <p className="error queue-state">{reviewsQuery.error.message}</p>}
+          {!reviewsQuery.isLoading && !reviews.length && <p className="muted queue-state">No pending matches.</p>}
           {!!reviews.length && (
-            <div className="result-list">
+            <div className="queue-list">
               {reviews.map((review) => (
                 <button
                   key={review.scrape_result_id}
-                  className={`result-button${selected?.scrape_result_id === review.scrape_result_id ? " active" : ""}`}
+                  className={selected?.scrape_result_id === review.scrape_result_id ? "active" : ""}
+                  aria-pressed={selected?.scrape_result_id === review.scrape_result_id}
                   onClick={() => {
                     setSelectedId(review.scrape_result_id);
                     setMessage("");
                   }}
                 >
-                  <strong>{review.sku}</strong>
-                  <span>{review.marketplace}</span>
-                  <span>{review.match_confidence ?? 0}%</span>
+                  <span className="queue-item-top">
+                    <strong>{review.sku}</strong>
+                    <span>{review.match_confidence ?? 0}% match</span>
+                  </span>
+                  <span className="queue-title">{review.product_title || "Untitled product"}</span>
+                  <small>{review.marketplace}</small>
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </aside>
 
-        <div className="panel">
+        <section className="review-canvas">
           {selected ? (
             <>
-              <div className="row between">
+              <header className="review-header">
                 <div>
-                  <h2>{selected.sku}</h2>
-                  <p className="muted">{selected.product_title}</p>
+                  <div className="row">
+                    <h1>{selected.sku}</h1>
+                    <span className="market-badge">{selected.marketplace}</span>
+                  </div>
+                  <p>{selected.product_title}</p>
                 </div>
+                {selected.price && (
+                  <div className="review-price">
+                    <strong>{selected.price}</strong>
+                    <span>Competitor price</span>
+                  </div>
+                )}
+              </header>
+
+              <div className="match-analysis-banner">
+                <Bot size={23} />
+                <div>
+                  <strong>LLM Match Analysis: {selected.match_confidence ?? 0}% Confidence</strong>
+                  <p>{selected.match_reason || "No match reasoning was returned."}</p>
+                </div>
+              </div>
+
+              {(!productUrlValid || !competitorUrlValid) && (
+                <div className="url-warning" role="alert">
+                  <Link2Off size={24} />
+                  <div>
+                    <strong>Missing source URL</strong>
+                    <p>A valid URL is required for both records before this match can be confirmed.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="comparison-grid">
+                <ComparisonCard
+                  kind="catalog"
+                  title="Internal catalog (source)"
+                  url={selected.product_url}
+                  rows={[
+                    ["SKU", selected.sku],
+                    ["Title", selected.product_title],
+                    ["Status", selected.review_status],
+                  ]}
+                />
+                <ComparisonCard
+                  kind="competitor"
+                  title="Scraped competitor data"
+                  url={selected.competitor_url}
+                  rows={[
+                    ["Marketplace", selected.marketplace],
+                    ["Title", selected.competitor_title],
+                    ["Price", selected.price],
+                  ]}
+                />
+              </div>
+
+              {(message || confirm.error || deny.error) && (
+                <div className="review-message" aria-live="polite">
+                  {message && <span>{message}</span>}
+                  {confirm.error && <span className="error">{confirm.error.message}</span>}
+                  {deny.error && <span className="error">{deny.error.message}</span>}
+                </div>
+              )}
+
+              <footer className="review-actions">
+                <Link className="button" href={`/products/${selected.product_id}`}>
+                  View product
+                </Link>
                 <div className="row">
-                  <Link className="button" href={`/products/${selected.product_id}`}>
-                    Product
-                  </Link>
-                  <button className="button danger" disabled={!selected || busy} onClick={() => deny.mutate(selected.scrape_result_id)}>
-                    <X size={16} /> Deny
+                  <button className="button danger solid" disabled={busy} onClick={() => deny.mutate(selected.scrape_result_id)}>
+                    <X size={16} /> Deny match
                   </button>
                   <button className="button primary" disabled={!canConfirm} onClick={() => confirm.mutate(selected.scrape_result_id)}>
-                    <Check size={16} /> Confirm
+                    <Check size={16} /> Confirm match
                   </button>
                 </div>
-              </div>
-              <div className="row">
-                <span className="status-pill">{selected.marketplace}</span>
-                {selected.price && <span className="status-pill">{selected.price}</span>}
-                {selected.match_confidence !== null && <span className="status-pill">{selected.match_confidence}%</span>}
-                {selected.matched_at && <span className="muted">{new Date(selected.matched_at).toLocaleString()}</span>}
-              </div>
-              {selected.match_reason && <p className="muted">{selected.match_reason}</p>}
-              {message && <p className="muted">{message}</p>}
-              {confirm.error && <p className="error">{confirm.error.message}</p>}
-              {deny.error && <p className="error">{deny.error.message}</p>}
-              <div className="review-frame-grid">
-                <FramePane title="Our URL" url={selected.product_url} />
-                <FramePane title="Competitor URL" url={selected.competitor_url} />
-              </div>
-              <div className="detail-grid">
-                <div>
-                  <strong>Competitor title</strong>
-                  <div className="detail-value">{selected.competitor_title}</div>
-                </div>
-                <div>
-                  <strong>Review status</strong>
-                  <div className="detail-value">{selected.review_status}</div>
-                </div>
-              </div>
+              </footer>
             </>
           ) : (
-            <p className="muted">Select a match.</p>
+            <div className="review-empty-state">
+              <Check size={30} />
+              <h1>Queue clear</h1>
+              <p className="muted">There are no pending matches to review.</p>
+            </div>
           )}
-        </div>
+        </section>
       </section>
     </main>
   );
